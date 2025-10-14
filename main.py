@@ -1,0 +1,150 @@
+"""
+Main FastAPI application
+Sistema de Gerenciamento Orçamentário para Condomínios
+"""
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.database import init_db
+from app.api import budget_router, analysis_router, parameters_router
+from app.api.items import router as items_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan event handler - initialize database on startup
+    """
+    # init_db()
+    # print("✓ Banco de dados inicializado")
+    yield
+    # Cleanup (if needed) would go here
+
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="Sistema de Gerenciamento Orçamentário",
+    description="Sistema completo para gestão e análise de orçamentos condominiais",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    lifespan=lifespan
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount static files and templates
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+templates = Jinja2Templates(directory="app/templates")
+
+# Include API routers
+app.include_router(budget_router)
+app.include_router(analysis_router)
+app.include_router(items_router)
+app.include_router(parameters_router)
+
+
+@app.get("/")
+async def home():
+    """
+    Redireciona para página de orçamentos
+    """
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/scenarios", status_code=302)
+
+
+@app.get("/scenarios", response_class=HTMLResponse)
+async def scenarios_page(request: Request):
+    """
+    Página de gerenciamento de cenários
+    """
+    return templates.TemplateResponse("scenarios.html", {"request": request})
+
+
+# Rotas removidas: Simulações, Comparações e Análise de Risco
+# (funcionalidades descontinuadas)
+
+
+@app.get("/edit-scenario", response_class=HTMLResponse)
+async def edit_scenario_page(request: Request):
+    """
+    Página de edição de cenário (itens e valores)
+    """
+    return templates.TemplateResponse("edit_scenario.html", {"request": request})
+
+
+@app.get("/parameters", response_class=HTMLResponse)
+async def parameters_page(request: Request):
+    """
+    Página de parâmetros do sistema
+    """
+    return templates.TemplateResponse("parameters.html", {"request": request})
+
+
+@app.get("/categories", response_class=HTMLResponse)
+async def categories_page(request: Request):
+    """
+    Página de gerenciamento de categorias
+    """
+    return templates.TemplateResponse("categories.html", {"request": request})
+
+
+@app.get("/scenarios/{scenario_id}/details", response_class=HTMLResponse)
+async def scenario_details_page(request: Request, scenario_id: int):
+    """
+    Página de relatório completo do orçamento
+    """
+    return templates.TemplateResponse("scenario_details.html", {
+        "request": request,
+        "scenario_id": scenario_id
+    })
+
+
+@app.get("/scenarios/{scenario_id}/summary", response_class=HTMLResponse)
+async def scenario_summary_page(request: Request, scenario_id: int):
+    """
+    Página de relatório resumido do orçamento
+    """
+    return templates.TemplateResponse("scenario_summary.html", {
+        "request": request,
+        "scenario_id": scenario_id
+    })
+
+
+@app.get("/scenarios/{scenario_id}/analysis", response_class=HTMLResponse)
+async def scenario_analysis_page(request: Request, scenario_id: int):
+    """
+    Página de análise do orçamento
+    """
+    return templates.TemplateResponse("analysis.html", {
+        "request": request,
+        "scenario_id": scenario_id
+    })
+
+
+@app.get("/scenarios/{scenario_id}/edit-interactive", response_class=HTMLResponse)
+async def edit_budget_interactive_page(request: Request, scenario_id: int):
+    """
+    Página de edição interativa de valores do orçamento
+    """
+    return templates.TemplateResponse("edit_budget_interactive.html", {
+        "request": request,
+        "scenario_id": scenario_id
+    })
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+

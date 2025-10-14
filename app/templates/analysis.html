@@ -1,0 +1,556 @@
+{% extends "base.html" %}
+
+{% block title %}Análise do Orçamento{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1 id="page-title">📈 Análise do Orçamento</h1>
+            <p class="text-muted">Análise de viabilidade e simulações de taxas</p>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="/scenarios/{{ scenario_id }}/summary" class="btn btn-primary">
+                📊 Relatório Resumido
+            </a>
+            <a href="/scenarios/{{ scenario_id }}/details" class="btn btn-primary">
+                📋 Relatório Detalhado
+            </a>
+            <a href="/scenarios" class="btn btn-secondary">
+                ← Voltar
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="analysis-content">
+    <div style="text-align: center; padding: 3rem;">
+        <p style="color: #6b7280; font-size: 1.1rem;">⏳ Carregando análise...</p>
+    </div>
+</div>
+
+<script>
+const scenarioId = {{ scenario_id }};
+
+// Funções de gerenciamento de cookies
+function setCookie(name, value, days = 365) {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    const expires = "expires=" + date.toUTCString();
+    document.cookie = name + "=" + value + ";" + expires + ";path=/";
+}
+
+function getCookie(name) {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for(let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+}
+
+// Formatar moeda
+function formatCurrency(value) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2
+    }).format(value);
+}
+
+// API Client
+const ParametersAPI = {
+    async getParameters() {
+        const response = await fetch('/api/parameters');
+        if (!response.ok) throw new Error('Erro ao carregar parâmetros');
+        return await response.json();
+    }
+};
+
+// Variáveis globais para armazenar dados
+let currentScenario = null;
+let currentCategories = [];
+let currentParameters = null;
+let excludedOptionalItems = new Set(); // IDs de itens opcionais desmarcados
+
+async function loadAnalysis() {
+    try {
+        // Carregar cenário e categorias
+        currentScenario = await BudgetAPI.getScenario(scenarioId);
+        currentCategories = await BudgetAPI.getCategories(scenarioId);
+        currentParameters = await ParametersAPI.getParameters();
+        
+        // Renderizar análise
+        recalculateAndRender();
+    } catch (error) {
+        console.error('Error loading analysis:', error);
+        document.getElementById('analysis-content').innerHTML = `
+            <div class="card" style="text-align: center; padding: 3rem;">
+                <p style="color: #ef4444; font-size: 1.1rem; margin-bottom: 1rem;">❌ Erro ao carregar análise</p>
+                <p style="color: #6b7280;">${error.message}</p>
+                <a href="/scenarios" class="btn btn-primary" style="margin-top: 1.5rem;">
+                    ← Voltar para Orçamentos
+                </a>
+            </div>
+        `;
+    }
+}
+
+// Recalcular e renderizar
+function recalculateAndRender() {
+    const totals = calculateTotals(currentCategories, currentScenario, excludedOptionalItems);
+    renderAnalysis(currentScenario, totals, currentParameters);
+}
+
+// Coletar todos os itens opcionais
+function getOptionalItems(categories) {
+    const optionalItems = [];
+    
+    categories.forEach(category => {
+        if (category.items && category.items.length > 0) {
+            category.items.forEach(item => {
+                if (item.is_optional) {
+                    const value = item.values && item.values.length > 0 ? item.values[0] : null;
+                    optionalItems.push({
+                        id: item.id,
+                        name: item.name,
+                        categoryName: category.name,
+                        itemType: category.item_type,
+                        budgeted: value?.budgeted || 0,
+                        estimated: value?.estimated || 0
+                    });
+                }
+            });
+        }
+    });
+    
+    return optionalItems;
+}
+
+// Toggle item opcional
+function toggleOptionalItem(itemId, isChecked) {
+    if (isChecked) {
+        excludedOptionalItems.delete(itemId);
+    } else {
+        excludedOptionalItems.add(itemId);
+    }
+    recalculateAndRender();
+}
+
+function calculateTotals(categories, scenario, excludedOptionalItems = new Set()) {
+    let totalRevenueBudgeted = 0;
+    let totalRevenueRealized = 0;
+    let totalRevenueEstimated = 0;
+    let totalExpenseBudgeted = 0;
+    let totalExpenseRealized = 0;
+    let totalExpenseEstimated = 0;
+    
+    const riskMargin = scenario.risk_margin || 0;
+    
+    categories.forEach(category => {
+        if (category.items && category.items.length > 0) {
+            category.items.forEach(item => {
+                // Pular itens opcionais que foram desmarcados
+                if (excludedOptionalItems.has(item.id)) {
+                    return;
+                }
+                
+                const value = item.values && item.values.length > 0 ? item.values[0] : null;
+                const budgeted = value?.budgeted || 0;
+                const realized = value?.realized || 0;
+                
+                // Usar o valor estimado que vem da API (já inclui lógica de estimated_fixed, repeats_next_budget, etc)
+                const estimated = value?.estimated || 0;
+                
+                if (category.item_type === 'revenue') {
+                    totalRevenueBudgeted += budgeted;
+                    totalRevenueRealized += realized;
+                    totalRevenueEstimated += estimated;
+                } else {
+                    totalExpenseBudgeted += budgeted;
+                    totalExpenseRealized += realized;
+                    totalExpenseEstimated += estimated;
+                }
+            });
+        }
+    });
+    
+    // Calcular o percentual ideal: receita deve cobrir despesas
+    const idealIncreasePercent = totalRevenueBudgeted > 0 
+        ? ((totalExpenseEstimated / totalRevenueBudgeted) - 1) * 100 
+        : 0;
+    
+    // Calcular receitas com correção ideal
+    // Para despesas, o valor ideal é igual ao previsto (não há "despesa ideal" diferente)
+    let totalRevenueIdeal = 0;
+    
+    categories.forEach(category => {
+        if (category.items && category.items.length > 0 && category.item_type === 'revenue') {
+            category.items.forEach(item => {
+                // Pular itens opcionais que foram desmarcados
+                if (excludedOptionalItems.has(item.id)) {
+                    return;
+                }
+                
+                const value = item.values && item.values.length > 0 ? item.values[0] : null;
+                const budgeted = value?.budgeted || 0;
+                
+                // Para correção ideal, aplicar o percentual ideal sobre o valor orçado
+                // Mas respeitar itens que não se repetem ou têm valor fixo
+                let idealValue = 0;
+                if (value?.estimated_fixed !== null && value?.estimated_fixed !== undefined) {
+                    // Se tem valor fixo, usar esse valor
+                    idealValue = value.estimated_fixed;
+                } else if (!item.repeats_next_budget) {
+                    // Se o item se repete, calcular com correção ideal
+                    const totalPercent = idealIncreasePercent + riskMargin;
+                    idealValue = budgeted * (1 + totalPercent / 100);
+                }
+                
+                totalRevenueIdeal += idealValue;
+            });
+        }
+    });
+    
+    return {
+        revenue: {
+            budgeted: totalRevenueBudgeted,
+            realized: totalRevenueRealized,
+            estimated: totalRevenueEstimated,
+            ideal: totalRevenueIdeal
+        },
+        expense: {
+            budgeted: totalExpenseBudgeted,
+            realized: totalExpenseRealized,
+            estimated: totalExpenseEstimated,
+            ideal: totalExpenseEstimated  // Despesa ideal = Despesa prevista
+        },
+        balance: {
+            budgeted: totalRevenueBudgeted - totalExpenseBudgeted,
+            realized: totalRevenueRealized - totalExpenseRealized,
+            estimated: totalRevenueEstimated - totalExpenseEstimated,
+            ideal: totalRevenueIdeal - totalExpenseEstimated  // Saldo ideal = Receita ideal - Despesa prevista
+        }
+    };
+}
+
+function renderOptionalItemsSection() {
+    const optionalItems = getOptionalItems(currentCategories);
+    
+    if (optionalItems.length === 0) {
+        return '';
+    }
+    
+    let html = `
+        <div class="card" style="background: #fef3c7; border: 2px solid #fbbf24;">
+            <h3 style="margin: 0 0 1rem 0; color: #92400e; display: flex; align-items: center; gap: 0.5rem;">
+                <span>⭐</span>
+                <span>Itens Opcionais - Simulação de Cenários</span>
+            </h3>
+            <p style="margin: 0 0 1rem 0; color: #78350f; font-size: 0.9rem;">
+                Selecione ou desmarque os itens abaixo para simular diferentes cenários orçamentários. Os cálculos serão atualizados automaticamente.
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.75rem;">
+    `;
+    
+    optionalItems.forEach(item => {
+        const isIncluded = !excludedOptionalItems.has(item.id);
+        const typeColor = item.itemType === 'revenue' ? '#10b981' : '#ef4444';
+        const typeLabel = item.itemType === 'revenue' ? 'Receita' : 'Despesa';
+        
+        html += `
+            <label style="display: flex; align-items: start; gap: 0.75rem; padding: 0.75rem; background: white; border-radius: 6px; border: 2px solid ${isIncluded ? typeColor + '40' : '#e5e7eb'}; cursor: pointer; transition: all 0.2s;">
+                <input type="checkbox" 
+                       ${isIncluded ? 'checked' : ''} 
+                       onchange="toggleOptionalItem(${item.id}, this.checked)"
+                       style="margin-top: 0.25rem; cursor: pointer; width: 18px; height: 18px;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #1f2937; margin-bottom: 0.25rem;">${item.name}</div>
+                    <div style="font-size: 0.8rem; color: #6b7280; margin-bottom: 0.25rem;">${item.categoryName}</div>
+                    <div style="display: flex; gap: 1rem; font-size: 0.85rem;">
+                        <span style="color: ${typeColor}; font-weight: 600;">${typeLabel}</span>
+                        <span style="color: #6b7280;">Estimado: ${formatCurrency(item.estimated)}</span>
+                    </div>
+                </div>
+            </label>
+        `;
+    });
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+function renderAnalysis(scenario, totals, parameters) {
+    document.getElementById('page-title').textContent = `📈 Análise - ${scenario.name}`;
+    
+    const hasDeficit = totals.balance.estimated < 0;
+    const increasePercent = totals.revenue.budgeted > 0 
+        ? ((totals.revenue.estimated - totals.revenue.budgeted) / totals.revenue.budgeted) * 100 
+        : 0;
+    
+    // Calcular o aumento ideal: percentual necessário para cobrir as despesas previstas
+    const idealIncreasePercent = totals.revenue.budgeted > 0
+        ? ((totals.expense.estimated / totals.revenue.budgeted) - 1) * 100
+        : 0;
+    
+    let html = `
+        <!-- Seção de Itens Opcionais -->
+        ${renderOptionalItemsSection()}
+        
+        <!-- Status da Análise -->
+        <div class="card" style="background: ${hasDeficit ? '#fef2f2' : '#f0fdf4'}; border: 2px solid ${hasDeficit ? '#fca5a5' : '#86efac'};">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="font-size: 3rem;">${hasDeficit ? '⚠️' : '✅'}</div>
+                <div style="flex: 1;">
+                    <h3 style="margin: 0; color: ${hasDeficit ? '#dc2626' : '#16a34a'};">
+                        ${hasDeficit ? 'ATENÇÃO: Orçamento com Déficit' : 'Orçamento Equilibrado'}
+                    </h3>
+                    <p style="margin: 0.5rem 0 0 0; color: #6b7280;">
+                        ${hasDeficit ? 'As despesas previstas são maiores que as receitas previstas.' : 'As receitas previstas cobrem as despesas previstas.'}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cards de Resumo -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+            <!-- Receitas -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                    <h3 style="margin: 0; color: #10b981; font-size: 1rem;">🟢 Receitas</h3>
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Ano Base (${scenario.year})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.revenue.budgeted)}</p>
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Realizado (${scenario.year})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.revenue.realized)}</p>
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Previsto (${scenario.year + 1})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: #10b981;">${formatCurrency(totals.revenue.estimated)}</p>
+                </div>
+                <div style="padding-top: 0.5rem; border-top: 1px solid #e5e7eb;">
+                    <p style="margin: 0; color: #059669; font-size: 0.85rem; font-weight: 600;">Ideal (${scenario.year + 1})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: #059669;">${formatCurrency(totals.revenue.ideal)}</p>
+                </div>
+            </div>
+
+            <!-- Despesas -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                    <h3 style="margin: 0; color: #ef4444; font-size: 1rem;">🔴 Despesas</h3>
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Ano Base (${scenario.year})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.expense.budgeted)}</p>
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Realizado (${scenario.year})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.expense.realized)}</p>
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Previsto (${scenario.year + 1})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: #ef4444;">${formatCurrency(totals.expense.estimated)}</p>
+                </div>
+                <div style="padding-top: 0.5rem; border-top: 1px solid #e5e7eb;">
+                    <p style="margin: 0; color: #dc2626; font-size: 0.85rem; font-weight: 600;">Ideal (${scenario.year + 1})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: #dc2626;">${formatCurrency(totals.expense.ideal)}</p>
+                </div>
+            </div>
+
+            <!-- Saldo -->
+            <div class="card" style="background: ${hasDeficit ? '#fef2f2' : '#f0fdf4'};">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                    <h3 style="margin: 0; color: ${hasDeficit ? '#dc2626' : '#16a34a'}; font-size: 1rem;">💰 Saldo</h3>
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Ano Base (${scenario.year})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.balance.budgeted)}</p>
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Realizado (${scenario.year})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.balance.realized)}</p>
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Previsto (${scenario.year + 1})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: ${hasDeficit ? '#dc2626' : '#16a34a'};">
+                        ${formatCurrency(totals.balance.estimated)}
+                    </p>
+                </div>
+                <div style="padding-top: 0.5rem; border-top: 1px solid #e5e7eb;">
+                    <p style="margin: 0; color: ${totals.balance.ideal >= 0 ? '#059669' : '#dc2626'}; font-size: 0.85rem; font-weight: 600;">Ideal (${scenario.year + 1})</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: ${totals.balance.ideal >= 0 ? '#059669' : '#dc2626'};">
+                        ${formatCurrency(totals.balance.ideal)}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Percentuais de Correção -->
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <!-- Correção Prevista -->
+                <div class="card" style="background: #eff6ff; padding: 0.75rem 1rem;">
+                    <h3 style="margin: 0 0 0.25rem 0; color: #3b82f6; font-size: 0.95rem;">📈 Correção Prevista</h3>
+                    <div style="text-align: center;">
+                        <p style="margin: 0; font-size: 1.8rem; font-weight: bold; color: #3b82f6;">
+                            ${increasePercent.toFixed(2)}%
+                        </p>
+                        <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.75rem;">
+                            Diferença entre orçado e previsto
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Correção Ideal -->
+                <div class="card" style="background: ${idealIncreasePercent <= increasePercent ? '#f0fdf4' : '#fef2f2'}; padding: 0.75rem 1rem;">
+                    <h3 style="margin: 0 0 0.25rem 0; color: ${idealIncreasePercent <= increasePercent ? '#16a34a' : '#dc2626'}; font-size: 0.95rem;">🎯 Correção Ideal</h3>
+                    <div style="text-align: center;">
+                        <p style="margin: 0; font-size: 1.8rem; font-weight: bold; color: ${idealIncreasePercent <= increasePercent ? '#16a34a' : '#dc2626'};">
+                            ${idealIncreasePercent.toFixed(2)}%
+                        </p>
+                        <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.75rem;">
+                            Necessário para cobrir todas as despesas
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Simulação de Taxas por Lote -->
+        <div class="card" style="margin-top: 1.5rem;">
+            <h2 style="margin-top: 0; margin-bottom: 1.5rem;">🏠 Simulação de Taxas de Manutenção</h2>
+            ${renderLotSimulations(totals.revenue.budgeted, totals.revenue.estimated, totals.revenue.ideal, parameters, scenario.year)}
+        </div>
+    `;
+    
+    document.getElementById('analysis-content').innerHTML = html;
+}
+
+function renderLotSimulations(totalRevenueBudgeted, totalRevenueEstimated, totalRevenueIdeal, parameters, scenarioYear) {
+    const { total_square_meters, lot_simulation_1, lot_simulation_2, lot_simulation_3, habite_se_discount } = parameters;
+    
+    if (total_square_meters === 0 || total_square_meters === null) {
+        return `
+            <div style="text-align: center; padding: 2rem; background: #f9fafb; border-radius: 8px;">
+                <p style="color: #6b7280; font-size: 1.1rem;">⚠️ Configure os parâmetros do sistema para ver as simulações</p>
+                <a href="/parameters" class="btn btn-primary" style="margin-top: 1rem;">
+                    ⚙️ Ir para Parâmetros
+                </a>
+            </div>
+        `;
+    }
+    
+    // Calcular taxas por m²
+    const ratePerSqmBudgeted = totalRevenueBudgeted / total_square_meters;
+    const ratePerSqmEstimated = totalRevenueEstimated / total_square_meters;
+    const ratePerSqmIdeal = totalRevenueIdeal / total_square_meters;
+    
+    const lots = [
+        { name: 'Taxa Mensal', size: lot_simulation_1, color: '#3b82f6' },
+        { name: 'Taxa Mensal', size: lot_simulation_2, color: '#8b5cf6' },
+        { name: 'Taxa Mensal', size: lot_simulation_3, color: '#ec4899' }
+    ];
+    
+    const baseYear = scenarioYear;
+    const nextYear = scenarioYear + 1;
+    
+    let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">';
+    
+    lots.forEach(lot => {
+        if (lot.size > 0) {
+            // Cenário 1: Ano Base (orçado)
+            const monthlyFeeBudgeted = ratePerSqmBudgeted * lot.size;
+            const monthlyFeeBudgetedWithDiscount = monthlyFeeBudgeted - (monthlyFeeBudgeted * habite_se_discount / 100);
+            
+            // Cenário 2: Ano Previsto (estimado)
+            const monthlyFeeEstimated = ratePerSqmEstimated * lot.size;
+            const monthlyFeeEstimatedWithDiscount = monthlyFeeEstimated - (monthlyFeeEstimated * habite_se_discount / 100);
+            
+            // Cenário 3: Ano Ideal (correção ideal)
+            const monthlyFeeIdeal = ratePerSqmIdeal * lot.size;
+            const monthlyFeeIdealWithDiscount = monthlyFeeIdeal - (monthlyFeeIdeal * habite_se_discount / 100);
+            
+            html += `
+                <div class="card" style="background: linear-gradient(135deg, ${lot.color}15 0%, ${lot.color}05 100%); border: 2px solid ${lot.color}40;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0; color: ${lot.color};">🏠 ${lot.name}</h3>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <span style="background: ${lot.color}; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600; font-size: 0.9rem;">
+                                ${lot.size} m²
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Cenário 1: Ano Base (${baseYear}) -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                        <div style="padding: 0.75rem; background: #f3f4f6; border-radius: 6px; border: 1px solid #d1d5db;">
+                            <p style="margin: 0 0 0.5rem 0; color: #6b7280; font-size: 0.75rem; font-weight: 600;">Ano Base (${baseYear})</p>
+                            <p style="margin: 0 0 0.25rem 0; color: #9ca3af; font-size: 0.7rem;">SEM habite-se</p>
+                            <p style="margin: 0; font-size: 1rem; font-weight: bold; color: #1f2937;">
+                                ${formatCurrency(monthlyFeeBudgeted)}
+                            </p>
+                        </div>
+                        <div style="padding: 0.75rem; background: #f3f4f6; border-radius: 6px; border: 1px solid #d1d5db;">
+                            <p style="margin: 0 0 0.5rem 0; color: #6b7280; font-size: 0.75rem; font-weight: 600;">Ano Base (${baseYear})</p>
+                            <p style="margin: 0 0 0.25rem 0; color: #9ca3af; font-size: 0.7rem;">COM habite-se (${-habite_se_discount}%)</p>
+                            <p style="margin: 0; font-size: 1rem; font-weight: bold; color: #1f2937;">
+                                ${formatCurrency(monthlyFeeBudgetedWithDiscount)}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Cenário 2: Ano Previsto (${nextYear}) -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                        <div style="padding: 0.75rem; background: ${lot.color}08; border-radius: 6px; border: 2px solid ${lot.color}40;">
+                            <p style="margin: 0 0 0.5rem 0; color: ${lot.color}; font-size: 0.75rem; font-weight: 600;">Previsto (${nextYear})</p>
+                            <p style="margin: 0 0 0.25rem 0; color: #9ca3af; font-size: 0.7rem;">SEM habite-se</p>
+                            <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: ${lot.color};">
+                                ${formatCurrency(monthlyFeeEstimated)}
+                            </p>
+                        </div>
+                        <div style="padding: 0.75rem; background: ${lot.color}15; border-radius: 6px; border: 2px solid ${lot.color}60;">
+                            <p style="margin: 0 0 0.5rem 0; color: ${lot.color}; font-size: 0.75rem; font-weight: 600;">Previsto (${nextYear})</p>
+                            <p style="margin: 0 0 0.25rem 0; color: #9ca3af; font-size: 0.7rem;">COM habite-se (${-habite_se_discount}%)</p>
+                            <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: ${lot.color};">
+                                ${formatCurrency(monthlyFeeEstimatedWithDiscount)}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Cenário 3: Ano Ideal (${nextYear}) -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <div style="padding: 0.75rem; background: #10b98108; border-radius: 6px; border: 2px solid #10b98140;">
+                            <p style="margin: 0 0 0.5rem 0; color: #10b981; font-size: 0.75rem; font-weight: 600;">Ideal (${nextYear})</p>
+                            <p style="margin: 0 0 0.25rem 0; color: #9ca3af; font-size: 0.7rem;">SEM habite-se</p>
+                            <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: #10b981;">
+                                ${formatCurrency(monthlyFeeIdeal)}
+                            </p>
+                        </div>
+                        <div style="padding: 0.75rem; background: #10b98115; border-radius: 6px; border: 2px solid #10b98160;">
+                            <p style="margin: 0 0 0.5rem 0; color: #10b981; font-size: 0.75rem; font-weight: 600;">Ideal (${nextYear})</p>
+                            <p style="margin: 0 0 0.25rem 0; color: #9ca3af; font-size: 0.7rem;">COM habite-se (${-habite_se_discount}%)</p>
+                            <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: #10b981;">
+                                ${formatCurrency(monthlyFeeIdealWithDiscount)}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+document.addEventListener('DOMContentLoaded', loadAnalysis);
+</script>
+{% endblock %}
+
