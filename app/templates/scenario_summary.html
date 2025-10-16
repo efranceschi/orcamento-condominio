@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Relatório Resumido - Calculadora Orçamentária{% endblock %}
+{% block title %}Sumário - Calculadora Orçamentária{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <h1 id="page-title">📊 Relatório Resumido</h1>
+            <h1 id="page-title">📊 Sumário</h1>
             <p class="page-description">Visão consolidada das categorias do orçamento</p>
         </div>
         <div style="display: flex; gap: 0.75rem;">
             <a href="/scenarios/{{ scenario_id }}/details" class="btn btn-primary">
-                📋 Relatório Detalhado
+                📋 Itens do Orçamento
             </a>
             <a href="/scenarios/{{ scenario_id }}/analysis" class="btn btn-primary" style="background: #8b5cf6;">
                 📈 Analisar
@@ -103,9 +103,25 @@
     border-bottom: 2px solid #e5e7eb;
 }
 
+.summary-table th.text-right {
+    text-align: right;
+}
+
+.summary-table th.text-center {
+    text-align: center;
+}
+
 .summary-table td {
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #e5e7eb;
+}
+
+.summary-table td.text-right {
+    text-align: right;
+}
+
+.summary-table td.text-center {
+    text-align: center;
 }
 
 .summary-table tr:last-child td {
@@ -132,8 +148,9 @@
 }
 
 .stat-label {
-    color: #6b7280;
-    font-size: 0.9rem;
+    color: #374151;
+    font-size: 1.1rem;
+    font-weight: 700;
     margin-bottom: 0.5rem;
 }
 
@@ -148,6 +165,27 @@
     background: #f9fafb;
     border-radius: 8px;
     border: 1px solid #e5e7eb;
+}
+
+.info-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.info-card-label {
+    color: #374151;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+}
+
+.info-card-value {
+    color: #1f2937;
+    font-size: 1.8rem;
+    font-weight: 700;
 }
 
 .spinner {
@@ -175,6 +213,33 @@
 
 .text-green {
     color: #10b981;
+}
+
+.section-container {
+    margin-bottom: 2.5rem;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 1.5rem 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 3px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.analysis-card {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+}
+
+.analysis-list {
+    overflow-y: auto;
+    padding-right: 0.5rem;
 }
 
 .charts-grid {
@@ -437,7 +502,7 @@ async function loadSummary() {
         // Salvar cenário globalmente
         window.currentScenario = scenario;
         
-        document.getElementById('page-title').textContent = `📊 Relatório Resumido - ${scenario.name}`;
+        document.getElementById('page-title').textContent = `📊 Sumário - ${scenario.name}`;
         
         // Criar um mapa de categorias para acesso rápido
         window.categoriesMap = {};
@@ -457,67 +522,126 @@ async function loadSummary() {
         let html = `
             <div class="scenario-info">
                 <h3 style="margin-top: 0; margin-bottom: 1rem;">${scenario.name}</h3>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
-                    <div><strong>Ano:</strong> ${scenario.year}</div>
-                    <div><strong>Status:</strong> 
-                        <span class="badge ${scenario.is_approved ? 'badge-success' : 'badge-warning'}">
-                            ${scenario.is_approved ? 'Aprovado' : 'Pendente'}
-                        </span>
-                        ${scenario.is_closed ? '<span class="badge badge-secondary">Finalizado</span>' : ''}
+                ${scenario.description ? `<p style="margin-bottom: 1rem;"><strong>Descrição:</strong> ${scenario.description}</p>` : ''}
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                    <div class="info-card">
+                        <div class="info-card-label">Ano</div>
+                        <div class="info-card-value">${scenario.year}</div>
                     </div>
-                    <div><strong>Reajuste Geral:</strong> ${scenario.general_adjustment}%</div>
-                </div>
-                ${scenario.description ? `<p style="margin-top: 1rem; margin-bottom: 0;"><strong>Descrição:</strong> ${scenario.description}</p>` : ''}
-            </div>
-            
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <div class="stat-label">Total Despesas</div>
-                    <div class="stat-value text-red">${formatCurrency(totalExpenses)}</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Total Receitas</div>
-                    <div class="stat-value text-green">${formatCurrency(totalRevenues)}</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Saldo</div>
-                    <div class="stat-value ${balance >= 0 ? 'text-green' : 'text-red'}">
-                        ${formatCurrency(balance)}
+                    <div class="info-card">
+                        <div class="info-card-label">Status</div>
+                        <div class="info-card-value">
+                            <span class="badge ${scenario.is_approved ? 'badge-success' : 'badge-warning'}">
+                                ${scenario.is_approved ? 'Aprovado' : 'Pendente'}
+                            </span>
+                            ${scenario.is_closed ? '<span class="badge badge-secondary">Finalizado</span>' : ''}
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-label">Reajuste Geral</div>
+                        <div class="info-card-value">${scenario.general_adjustment}%</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-label">Margem de Erro</div>
+                        <div class="info-card-value">${scenario.risk_margin || 0}%</div>
                     </div>
                 </div>
             </div>
             
-            <!-- Gráficos de Anel -->
-            <div class="charts-grid">
-                <div class="chart-card">
-                    <h3 style="text-align: center; margin-bottom: 1rem; font-size: 1.1rem;">Receitas vs Despesas</h3>
-                    <canvas id="chart-overview"></canvas>
+            <!-- Seção: Receitas e Despesas -->
+            <div class="section-container">
+                <h2 class="section-title">💰 Receitas e Despesas</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Total Despesas</div>
+                        <div class="stat-value text-red">${formatCurrency(totalExpenses)}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Total Receitas</div>
+                        <div class="stat-value text-green">${formatCurrency(totalRevenues)}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Saldo</div>
+                        <div class="stat-value ${balance >= 0 ? 'text-green' : 'text-red'}">
+                            ${formatCurrency(balance)}
+                        </div>
+                    </div>
                 </div>
-                <div class="chart-card">
-                    <h3 style="text-align: center; margin-bottom: 1rem; font-size: 1.1rem;">Receitas por Categoria</h3>
-                    <canvas id="chart-revenues"></canvas>
-                </div>
-                <div class="chart-card">
-                    <h3 style="text-align: center; margin-bottom: 1rem; font-size: 1.1rem;">Despesas por Categoria</h3>
-                    <canvas id="chart-expenses"></canvas>
+                
+                <!-- Gráficos de Anel -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3 style="text-align: center; margin-bottom: 1rem; font-size: 1.1rem;">Receitas vs Despesas</h3>
+                        <canvas id="chart-overview"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3 style="text-align: center; margin-bottom: 1rem; font-size: 1.1rem;">Receitas por Categoria</h3>
+                        <canvas id="chart-revenues"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3 style="text-align: center; margin-bottom: 1rem; font-size: 1.1rem;">Execução Orçamentária</h3>
+                        <canvas id="chart-gauge"></canvas>
+                        <div id="gauge-info" style="text-align: center; margin-top: 0.5rem; font-size: 0.9rem; color: #6b7280;"></div>
+                    </div>
                 </div>
             </div>
             
-            <!-- Tabelas por Abas -->
-            <div class="summary-card">
-                <div class="tabs-container">
-                    <button class="tab-btn active" onclick="switchTab('expenses')">🔴 DESPESAS</button>
-                    <button class="tab-btn" onclick="switchTab('revenues')">🟢 RECEITAS</button>
-                </div>
+            <!-- Seção: Análise das Despesas -->
+            <div class="section-container">
+                <h2 class="section-title">📊 Análise das Despesas</h2>
                 
-                <div id="expenses-tab" class="tab-content active" style="margin-top: 1.5rem;">
-                    <h3 style="color: #ef4444; margin-top: 0; margin-bottom: 1rem;">Despesas por Categoria</h3>
-                    ${renderCategoryTable(expenses)}
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start;">
+                    <div class="summary-card analysis-card">
+                        <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem; color: #374151;">Despesas por Categoria</h3>
+                        <div style="height: 350px;">
+                            <canvas id="chart-expenses-bar"></canvas>
+                        </div>
+                    </div>
+                    <div class="summary-card analysis-card">
+                        <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem; color: #ef4444;">⚠️ Despesas Problemáticas</h3>
+                        <div id="problematic-expenses" class="analysis-list" style="max-height: 350px;"></div>
+                    </div>
                 </div>
+            </div>
+            
+            <!-- Seção: Oportunidades -->
+            <div class="section-container">
+                <h2 class="section-title">💡 Oportunidades</h2>
                 
-                <div id="revenues-tab" class="tab-content" style="display: none; margin-top: 1.5rem;">
-                    <h3 style="color: #10b981; margin-top: 0; margin-bottom: 1rem;">Receitas por Categoria</h3>
-                ${renderCategoryTable(revenues)}
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start;">
+                    <div class="summary-card analysis-card">
+                        <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem; color: #10b981;">Orçado e Não Gasto</h3>
+                        <div style="height: 350px;">
+                            <canvas id="chart-opportunities"></canvas>
+                        </div>
+                    </div>
+                    <div class="summary-card analysis-card">
+                        <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem; color: #10b981;">✨ Maiores Oportunidades</h3>
+                        <div id="top-opportunities" class="analysis-list" style="max-height: 350px;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Seção: Categorias -->
+            <div class="section-container">
+                <h2 class="section-title">📂 Despesas e Receitas por Categoria</h2>
+                
+                <div class="summary-card" style="margin-bottom: 0;">
+                    <div class="tabs-container">
+                        <button class="tab-btn active" onclick="switchTab('expenses')">🔴 DESPESAS</button>
+                        <button class="tab-btn" onclick="switchTab('revenues')">🟢 RECEITAS</button>
+                    </div>
+                    
+                    <div id="expenses-tab" class="tab-content active" style="margin-top: 1.5rem;">
+                        <h3 style="color: #ef4444; margin-top: 0; margin-bottom: 1rem;">Despesas por Categoria</h3>
+                        ${renderCategoryTable(expenses)}
+                    </div>
+                    
+                    <div id="revenues-tab" class="tab-content" style="display: none; margin-top: 1.5rem;">
+                        <h3 style="color: #10b981; margin-top: 0; margin-bottom: 1rem;">Receitas por Categoria</h3>
+                    ${renderCategoryTable(revenues)}
+                    </div>
                 </div>
             </div>
         `;
@@ -602,31 +726,18 @@ function renderCategoryTable(categories) {
             console.log(`[Resumo] Categoria ${category.category_name}: adjustment_percent é null/undefined`);
         }
         
-        // Calcular percentual efetivo médio da categoria e estimado
+        // Usar o valor estimado que vem da API (já calculado corretamente no backend)
         const riskMargin = window.currentScenario?.risk_margin || 0;
-        let estimated = 0;
-        let avgAdjustmentPercent = adjustmentPercent || window.currentScenario?.general_adjustment || 0;
+        const estimated = category.total_estimated || 0;
         
-        // Se temos a categoria completa com itens, calcular de forma mais precisa
-        if (fullCategory && fullCategory.items && fullCategory.items.length > 0) {
-            for (const item of fullCategory.items) {
-                const value = item.values && item.values.length > 0 ? item.values[0] : null;
-                
-                // Usar o valor estimado que vem da API (já inclui lógica de estimated_fixed, repeats_next_budget, etc)
-                estimated += value?.estimated || 0;
-            }
-            // Calcular percentual médio ponderado
+        // Calcular percentual médio de aumento baseado no estimado
+        let avgAdjustmentPercent = adjustmentPercent || window.currentScenario?.general_adjustment || 0;
+        if (budgeted > 0 && estimated > 0) {
             // Como estimado = orçado * (1 + (aumento + margem)/100)
             // Então: totalPercent = (estimado / orçado - 1) * 100 = aumento + margem
             // Logo: aumento = totalPercent - margem
-            if (budgeted > 0) {
-                const totalPercent = (estimated / budgeted - 1) * 100;
-                avgAdjustmentPercent = totalPercent - riskMargin;
-            }
-        } else {
-            // Fallback para cálculo simples
-            const totalPercent = avgAdjustmentPercent + riskMargin;
-            estimated = budgeted * (1 + totalPercent / 100);
+            const totalPercent = (estimated / budgeted - 1) * 100;
+            avgAdjustmentPercent = totalPercent - riskMargin;
         }
         
         // Determinar cor do orçado e realizado
@@ -660,33 +771,10 @@ function renderCategoryTable(categories) {
     // Linha de total
     const riskMargin = window.currentScenario?.risk_margin || 0;
     
-    // Calcular estimado total e percentual médio de aumento
+    // Somar os valores estimados que já vêm calculados da API
     let grandTotalEstimated = 0;
     for (const category of categories) {
-        const fullCategory = window.categoriesMap ? window.categoriesMap[category.category_name] : null;
-        const budgeted = category.total_budgeted || 0;
-        const adjustmentPercent = fullCategory?.adjustment_percent || window.currentScenario?.general_adjustment || 0;
-        
-        if (fullCategory && fullCategory.items && fullCategory.items.length > 0) {
-            for (const item of fullCategory.items) {
-                const value = item.values && item.values.length > 0 ? item.values[0] : null;
-                const itemBudgeted = value?.budgeted || 0;
-                const itemAdjustment = item.effective_adjustment_percent || 0;
-                
-                // Calcular estimado: se não se repete no próximo orçamento, estimado é 0
-                if (item.repeats_next_budget) {
-                    grandTotalEstimated += 0;
-                } else {
-                    // Calcular estimado: orçado * (1 + (aumento + margem)/100)
-                    const totalPercent = itemAdjustment + riskMargin;
-                    grandTotalEstimated += itemBudgeted * (1 + totalPercent / 100);
-                }
-            }
-        } else {
-            // Fallback para cálculo simples
-            const totalPercent = adjustmentPercent + riskMargin;
-            grandTotalEstimated += budgeted * (1 + totalPercent / 100);
-        }
+        grandTotalEstimated += category.total_estimated || 0;
     }
     
     // Calcular percentual médio de aumento
@@ -842,23 +930,112 @@ function renderCharts(scenario, expenses, revenues) {
         }
     });
     
-    // Gráfico 3: Despesas por Categoria (subcategorias de primeiro nível)
-    const expenseSubcategories = getSubcategories(allCategories, expenses, 'expense');
+    // Gráfico 3: Velocímetro de Execução Orçamentária
+    const totalExpensesRealized = expenses.reduce((sum, cat) => sum + (cat.total_realized || 0), 0);
+    const realizationPercent = totalExpenses > 0 ? (totalExpensesRealized / totalExpenses) * 100 : 0;
     
-    new Chart(document.getElementById('chart-expenses'), {
+    // Determinar cor baseada no percentual
+    let gaugeColor = '#10b981'; // verde
+    let isOverBudget = false;
+    
+    if (realizationPercent > 100) {
+        gaugeColor = '#dc2626'; // vermelho escuro para estouro
+        isOverBudget = true;
+    } else if (realizationPercent > 90) {
+        gaugeColor = '#ef4444'; // vermelho
+    } else if (realizationPercent > 75) {
+        gaugeColor = '#f59e0b'; // amarelo
+    }
+    
+    // Limitar o valor visual do gráfico a 100%, mas manter o valor real no texto
+    const displayPercent = Math.min(realizationPercent, 100);
+    const remainingPercent = Math.max(100 - realizationPercent, 0);
+    
+    new Chart(document.getElementById('chart-gauge'), {
         type: 'doughnut',
         data: {
-            labels: expenseSubcategories.map(cat => cat.name),
             datasets: [{
-                data: expenseSubcategories.map(cat => cat.total),
-                backgroundColor: generateColors(expenseSubcategories.length, '#ef4444'),
+                data: [displayPercent, remainingPercent],
+                backgroundColor: [gaugeColor, '#e5e7eb'],
+                borderWidth: 0,
+                circumference: 180,
+                rotation: 270
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            cutout: '75%'
+        },
+        plugins: [{
+            id: 'gaugeText',
+            afterDraw: (chart) => {
+                const ctx = chart.ctx;
+                const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+                const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2;
+                
+                ctx.save();
+                ctx.font = 'bold 2rem sans-serif';
+                ctx.fillStyle = gaugeColor;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`${realizationPercent.toFixed(1)}%`, centerX, centerY - 10);
+                
+                ctx.font = '0.9rem sans-serif';
+                ctx.fillStyle = '#6b7280';
+                const statusText = isOverBudget ? 'ESTOURO!' : 'Executado';
+                ctx.fillText(statusText, centerX, centerY + 20);
+                ctx.restore();
+            }
+        }]
+    });
+    
+    // Informações abaixo do gráfico
+    const overBudgetAmount = totalExpensesRealized - totalExpenses;
+    let infoHtml = `
+        <div style="margin-top: 0.5rem;">
+            <div><strong>${formatCurrency(totalExpensesRealized)}</strong> de ${formatCurrency(totalExpenses)}</div>
+    `;
+    
+    if (isOverBudget) {
+        infoHtml += `
+            <div style="font-size: 0.85rem; color: #dc2626; margin-top: 0.25rem; font-weight: 600;">
+                ⚠️ Estouro de ${formatCurrency(overBudgetAmount)}
+            </div>
+        `;
+    } else {
+        infoHtml += `
+            <div style="font-size: 0.85rem; color: #9ca3af; margin-top: 0.25rem;">
+                Despesas realizadas no ano base
+            </div>
+        `;
+    }
+    
+    infoHtml += '</div>';
+    document.getElementById('gauge-info').innerHTML = infoHtml;
+    
+    // Gráfico 4: Anel - Despesas por Categoria
+    const expenseSubcategories = getSubcategories(allCategories, expenses, 'expense');
+    const sortedExpenses = [...expenseSubcategories].sort((a, b) => b.total - a.total);
+    
+    new Chart(document.getElementById('chart-expenses-bar'), {
+        type: 'doughnut',
+        data: {
+            labels: sortedExpenses.map(cat => cat.name),
+            datasets: [{
+                data: sortedExpenses.map(cat => cat.total),
+                backgroundColor: generateColors(sortedExpenses.length, '#ef4444'),
                 borderWidth: 2,
                 borderColor: '#fff'
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -881,6 +1058,220 @@ function renderCharts(scenario, expenses, revenues) {
             }
         }
     });
+    
+    // Renderizar lista de despesas problemáticas
+    renderProblematicExpenses(allCategories, expenses);
+    
+    // Renderizar gráfico e lista de oportunidades
+    renderOpportunities(allCategories, expenses);
+}
+
+// Renderizar despesas problemáticas
+function renderProblematicExpenses(allCategories, expenses) {
+    const problematic = [];
+    
+    // Analisar todas as categorias de despesas
+    for (const rootCat of expenses) {
+        const fullCategory = allCategories.find(cat => cat.name === rootCat.category_name && cat.item_type === 'expense');
+        
+        if (fullCategory) {
+            analyzeCategory(fullCategory, allCategories, problematic);
+        }
+    }
+    
+    // Ordenar por maior estouro (realizado - orçado)
+    problematic.sort((a, b) => b.overrun - a.overrun);
+    
+    // Limitar aos 15 maiores problemas
+    const top15 = problematic.slice(0, 15);
+    
+    let html = '';
+    if (top15.length === 0) {
+        html = `
+            <div style="text-align: center; padding: 2rem; color: #10b981;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
+                <div style="font-weight: 500;">Nenhuma despesa problemática detectada</div>
+                <div style="font-size: 0.85rem; color: #6b7280; margin-top: 0.5rem;">Todas as despesas estão dentro do orçado</div>
+            </div>
+        `;
+    } else {
+        html = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">';
+        for (const item of top15) {
+            const overrunPercent = item.budgeted > 0 ? ((item.overrun / item.budgeted) * 100) : 0;
+            html += `
+                <div style="padding: 0.75rem; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px;">
+                    <div style="font-weight: 500; color: #374151; margin-bottom: 0.25rem;">${item.name}</div>
+                    <div style="font-size: 0.85rem; color: #6b7280;">
+                        Orçado: <strong>${formatCurrency(item.budgeted)}</strong> | 
+                        Realizado: <strong style="color: #ef4444;">${formatCurrency(item.realized)}</strong>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #ef4444; margin-top: 0.25rem;">
+                        <strong>Estouro: ${formatCurrency(item.overrun)} (+${overrunPercent.toFixed(1)}%)</strong>
+                    </div>
+                </div>
+            `;
+        }
+        html += '</div>';
+    }
+    
+    document.getElementById('problematic-expenses').innerHTML = html;
+}
+
+// Analisar categoria recursivamente para encontrar problemas
+function analyzeCategory(category, allCategories, problematic) {
+    // Analisar itens diretos
+    if (category.items && category.items.length > 0) {
+        for (const item of category.items) {
+            const value = item.values && item.values.length > 0 ? item.values[0] : null;
+            if (value) {
+                const budgeted = value.budgeted || 0;
+                const realized = value.realized || 0;
+                
+                // Considerar problemático se realizado > orçado
+                if (realized > budgeted && budgeted > 0) {
+                    const overrun = realized - budgeted;
+                    problematic.push({
+                        name: `${category.name} > ${item.name}`,
+                        budgeted: budgeted,
+                        realized: realized,
+                        overrun: overrun
+                    });
+                }
+            }
+        }
+    }
+    
+    // Analisar subcategorias recursivamente
+    const children = allCategories.filter(cat => cat.parent_category_id === category.id);
+    for (const child of children) {
+        analyzeCategory(child, allCategories, problematic);
+    }
+}
+
+// Renderizar oportunidades (valores orçados não gastos)
+function renderOpportunities(allCategories, expenses) {
+    const opportunities = [];
+    
+    // Analisar todas as categorias de despesas
+    for (const rootCat of expenses) {
+        const fullCategory = allCategories.find(cat => cat.name === rootCat.category_name && cat.item_type === 'expense');
+        
+        if (fullCategory) {
+            analyzeCategoryOpportunities(fullCategory, allCategories, opportunities);
+        }
+    }
+    
+    // Filtrar apenas diferenças positivas e ordenar por maior oportunidade
+    const validOpportunities = opportunities.filter(opp => opp.savings > 0);
+    validOpportunities.sort((a, b) => b.savings - a.savings);
+    
+    // Calcular totais para o gráfico
+    const totalBudgeted = validOpportunities.reduce((sum, opp) => sum + opp.budgeted, 0);
+    const totalRealized = validOpportunities.reduce((sum, opp) => sum + opp.realized, 0);
+    const totalSavings = validOpportunities.reduce((sum, opp) => sum + opp.savings, 0);
+    
+    // Gráfico de anel - Orçado vs Realizado vs Não Gasto
+    new Chart(document.getElementById('chart-opportunities'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Realizado', 'Não Gasto (Oportunidade)'],
+            datasets: [{
+                data: [totalRealized, totalSavings],
+                backgroundColor: ['#fbbf24', '#10b981'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 10,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = formatCurrency(context.parsed);
+                            const total = totalBudgeted;
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Renderizar lista das maiores oportunidades (top 15)
+    const top15 = validOpportunities.slice(0, 15);
+    
+    let html = '';
+    if (top15.length === 0) {
+        html = `
+            <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">📊</div>
+                <div style="font-weight: 500;">Nenhuma oportunidade identificada</div>
+                <div style="font-size: 0.85rem; color: #9ca3af; margin-top: 0.5rem;">Todas as despesas foram realizadas conforme orçado</div>
+            </div>
+        `;
+    } else {
+        html = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">';
+        for (const item of top15) {
+            const savingsPercent = item.budgeted > 0 ? ((item.savings / item.budgeted) * 100) : 0;
+            html += `
+                <div style="padding: 0.75rem; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px;">
+                    <div style="font-weight: 500; color: #374151; margin-bottom: 0.25rem;">${item.name}</div>
+                    <div style="font-size: 0.85rem; color: #6b7280;">
+                        Orçado: <strong>${formatCurrency(item.budgeted)}</strong> | 
+                        Realizado: <strong style="color: #059669;">${formatCurrency(item.realized)}</strong>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #10b981; margin-top: 0.25rem;">
+                        <strong>💡 Economia: ${formatCurrency(item.savings)} (${savingsPercent.toFixed(1)}%)</strong>
+                    </div>
+                </div>
+            `;
+        }
+        html += '</div>';
+    }
+    
+    document.getElementById('top-opportunities').innerHTML = html;
+}
+
+// Analisar categoria recursivamente para encontrar oportunidades
+function analyzeCategoryOpportunities(category, allCategories, opportunities) {
+    // Analisar itens diretos
+    if (category.items && category.items.length > 0) {
+        for (const item of category.items) {
+            const value = item.values && item.values.length > 0 ? item.values[0] : null;
+            if (value) {
+                const budgeted = value.budgeted || 0;
+                const realized = value.realized || 0;
+                
+                // Considerar oportunidade se realizado < orçado (diferença positiva)
+                if (realized < budgeted && budgeted > 0) {
+                    const savings = budgeted - realized;
+                    opportunities.push({
+                        name: `${category.name} > ${item.name}`,
+                        budgeted: budgeted,
+                        realized: realized,
+                        savings: savings
+                    });
+                }
+            }
+        }
+    }
+    
+    // Analisar subcategorias recursivamente
+    const children = allCategories.filter(cat => cat.parent_category_id === category.id);
+    for (const child of children) {
+        analyzeCategoryOpportunities(child, allCategories, opportunities);
+    }
 }
 
 // Obter subcategorias de primeiro nível

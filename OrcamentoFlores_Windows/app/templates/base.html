@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Calculadora Orçamentária{% endblock %}</title>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="navbar-brand">💰 Calculadora Orçamentária</a>
+            <ul class="navbar-nav">
+                <li><a href="/scenarios" class="nav-link {% if '/scenarios' in request.url.path %}active{% endif %}">Orçamentos</a></li>
+                <li><a href="/categories" class="nav-link {% if '/categories' in request.url.path %}active{% endif %}">Categorias</a></li>
+                <li><a href="/parameters" class="nav-link {% if '/parameters' in request.url.path %}active{% endif %}">Parâmetros</a></li>
+            </ul>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+    
+    <!-- Scripts -->
+    <script src="/static/js/api.js"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
+

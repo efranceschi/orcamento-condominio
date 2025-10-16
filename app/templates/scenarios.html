@@ -232,13 +232,16 @@ function displayScenarios(scenarios) {
                 <div class="flex gap-2 mt-3" style="flex-wrap: wrap; justify-content: space-between;">
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <button onclick="viewScenarioDetails(${scenario.id}, '${scenario.name}')" class="btn btn-primary btn-sm">
-                            📋 Relatório Completo
+                            📋 Itens do Orçamento
                         </button>
                         <button onclick="viewScenarioSummary(${scenario.id}, '${scenario.name}')" class="btn btn-primary btn-sm">
-                            📊 Relatório Resumido
+                            📊 Sumário
                         </button>
                         <button onclick="viewAnalysis(${scenario.id})" class="btn btn-primary btn-sm" style="background: #8b5cf6;">
                             📈 Analisar
+                        </button>
+                        <button onclick="downloadBudgetPDF(${scenario.id}, '${scenario.name}', ${scenario.year})" class="btn btn-primary btn-sm" style="background: #059669;">
+                            📥 Baixar Orçamento
                         </button>
                     </div>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
@@ -371,7 +374,7 @@ async function saveScenarioEdit(event, scenarioId, modal) {
     }
 }
 
-// Ver Relatório Resumido (apenas categorias, sem itens)
+// Ver Sumário (apenas categorias, sem itens)
 function viewScenarioSummary(scenarioId) {
     window.location.href = `/scenarios/${scenarioId}/summary`;
 }
@@ -379,6 +382,44 @@ function viewScenarioSummary(scenarioId) {
 // Ver Análise do Orçamento
 function viewAnalysis(scenarioId) {
     window.location.href = `/scenarios/${scenarioId}/analysis`;
+}
+
+// Baixar Orçamento em PDF
+async function downloadBudgetPDF(scenarioId, scenarioName, year) {
+    try {
+        showAlert('⏳ Gerando PDF do orçamento...', 'info');
+        
+        // Fazer requisição para o endpoint de download
+        const response = await fetch(`/api/budgets/scenarios/${scenarioId}/download-pdf`);
+        
+        if (!response.ok) {
+            throw new Error('Erro ao gerar PDF');
+        }
+        
+        // Obter o blob do PDF
+        const blob = await response.blob();
+        
+        // Criar URL temporária para download
+        const url = window.URL.createObjectURL(blob);
+        
+        // Criar link temporário e clicar nele
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `Orcamento_${scenarioName.replace(/\s+/g, '_')}_${year}.pdf`;
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        // Limpar
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showAlert('✅ PDF gerado com sucesso!', 'success');
+    } catch (error) {
+        console.error('Error downloading PDF:', error);
+        showAlert('❌ Erro ao gerar PDF: ' + error.message, 'danger');
+    }
 }
 
 async function approveScenario(scenarioId, scenarioName) {

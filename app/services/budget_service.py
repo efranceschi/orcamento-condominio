@@ -98,6 +98,8 @@ class BudgetService:
         categories_summary = []
         total_expenses = 0.0
         total_revenues = 0.0
+        total_expenses_estimated = 0.0
+        total_revenues_estimated = 0.0
         
         # Pegar apenas categorias raiz (parent_category_id IS NULL)
         # Essas categorias já incluem recursivamente os valores das subcategorias
@@ -109,8 +111,10 @@ class BudgetService:
                 
                 if category.item_type == ItemType.EXPENSE:
                     total_expenses += cat_summary.total_budgeted
+                    total_expenses_estimated += cat_summary.total_estimated
                 else:
                     total_revenues += cat_summary.total_budgeted
+                    total_revenues_estimated += cat_summary.total_estimated
         
         return ScenarioSummary(
             scenario_id=scenario.id,
@@ -118,6 +122,9 @@ class BudgetService:
             total_expenses=total_expenses,
             total_revenues=total_revenues,
             balance=total_revenues - total_expenses,
+            total_expenses_estimated=total_expenses_estimated,
+            total_revenues_estimated=total_revenues_estimated,
+            balance_estimated=total_revenues_estimated - total_expenses_estimated,
             categories=categories_summary
         )
     
@@ -126,6 +133,7 @@ class BudgetService:
         total_budgeted = 0.0
         total_realized = 0.0
         total_adjusted = 0.0
+        total_estimated = 0.0
         has_realized = False
         has_adjusted = False
         
@@ -139,6 +147,9 @@ class BudgetService:
                 if value.adjusted is not None:
                     total_adjusted += value.adjusted
                     has_adjusted = True
+                
+                # Calcular estimated manualmente para garantir precisão
+                total_estimated += self._calculate_item_estimated(item, value, category.scenario)
         
         # Somar subcategorias recursivamente
         subcategories = self.db.query(BudgetCategory).filter(
@@ -154,6 +165,7 @@ class BudgetService:
             if subcat_summary.total_adjusted is not None:
                 total_adjusted += subcat_summary.total_adjusted
                 has_adjusted = True
+            total_estimated += subcat_summary.total_estimated
         
         variance = (total_realized - total_budgeted) if has_realized else None
         variance_percent = None
@@ -167,9 +179,34 @@ class BudgetService:
             total_budgeted=total_budgeted,
             total_realized=total_realized if has_realized else None,
             total_adjusted=total_adjusted if has_adjusted else None,
+            total_estimated=total_estimated,
             variance=variance,
             variance_percent=variance_percent
         )
+    
+    def _calculate_item_estimated(self, item, value, scenario):
+        """Calcula o valor estimado de um item manualmente"""
+        if not value:
+            return 0.0
+            
+        # Se tem valor previsto fixo, usa ele
+        if value.estimated_fixed is not None:
+            return float(value.estimated_fixed)
+        
+        # Se o item não se repete no próximo orçamento, estimado é zero
+        if item.repeats_next_budget:
+            return 0.0
+        
+        # Obter percentual de aumento efetivo
+        adjustment_percent = item.get_effective_adjustment_percent()
+        
+        # Obter margem de risco do cenário
+        risk_margin = scenario.risk_margin or 0
+        
+        # Calcular: orçado * (1 + (aumento + margem)/100)
+        budgeted = float(value.budgeted or 0)
+        total_percent = adjustment_percent + risk_margin
+        return budgeted * (1 + total_percent / 100)
     
     def compare_scenarios(self, base_scenario_id: int, 
                          compared_scenario_id: int) -> Optional[ComparisonResponse]:

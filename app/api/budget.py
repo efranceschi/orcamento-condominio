@@ -3,10 +3,11 @@ Budget management API endpoints
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.models import BudgetCategory, BudgetItem
+from app.models import BudgetCategory, BudgetItem, BudgetScenario
 from app.schemas.budget import (
     BudgetScenarioCreate,
     BudgetScenarioUpdate,
@@ -18,6 +19,7 @@ from app.schemas.budget import (
     CategoryResponse
 )
 from app.services.budget_service import BudgetService
+from app.services.pdf_service import BudgetPDFGenerator
 
 router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 
@@ -240,7 +242,7 @@ def update_category(
     db: Session = Depends(get_db)
 ):
     """
-    Atualiza uma categoria e propaga mudanças de adjustment_percent para itens filhos
+    Atualiza uma categoria (sem propagar mudanças para itens filhos)
     """
     category = db.query(BudgetCategory).filter(BudgetCategory.id == category_id).first()
     if not category:
@@ -253,19 +255,11 @@ def update_category(
     print(f"Dados recebidos: {update_data}")
     print(f"Valor atual de adjustment_percent: {category.adjustment_percent}")
     
-    # Verificar se adjustment_percent está sendo atualizado
-    adjustment_changed = 'adjustment_percent' in update_data and update_data['adjustment_percent'] != category.adjustment_percent
-    
     for key, value in update_data.items():
         print(f"Setando {key} = {value}")
         setattr(category, key, value)
     
     print(f"Novo valor de adjustment_percent: {category.adjustment_percent}")
-    
-    # Se adjustment_percent foi alterado, limpar adjustment_percent de todos os itens filhos
-    # desta categoria e subcategorias (recursivamente)
-    if adjustment_changed:
-        _clear_items_adjustment_recursive(db, category)
     
     db.commit()
     db.refresh(category)
@@ -273,24 +267,6 @@ def update_category(
     print(f"Após commit - adjustment_percent: {category.adjustment_percent}")
     
     return category
-
-
-def _clear_items_adjustment_recursive(db: Session, category: BudgetCategory):
-    """
-    Limpa o adjustment_percent de todos os itens da categoria e suas subcategorias recursivamente
-    """
-    # Limpar adjustment_percent de todos os itens desta categoria
-    for item in category.items:
-        item.adjustment_percent = None
-        print(f"  Limpando adjustment_percent do item: {item.name}")
-    
-    # Buscar subcategorias e processar recursivamente
-    subcategories = db.query(BudgetCategory).filter(
-        BudgetCategory.parent_category_id == category.id
-    ).all()
-    
-    for subcat in subcategories:
-        _clear_items_adjustment_recursive(db, subcat)
 
 
 @router.delete("/categories/{category_id}", status_code=204)
@@ -560,4 +536,44 @@ def copy_from_previous_year(
         "categories_copied": len(category_map),
         "previous_scenario": previous_scenario.name
     }
+
+
+@router.get("/scenarios/{scenario_id}/download-pdf")
+def download_budget_pdf(
+    scenario_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Gera e baixa o orçamento completo em formato PDF
+    """
+    # Buscar cenário com todas as categorias e itens
+    scenario = db.query(BudgetScenario).filter(
+        BudgetScenario.id == scenario_id
+    ).first()
+    
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Orçamento não encontrado")
+    
+    # Buscar todas as categorias com itens e valores (eager loading)
+    categories = db.query(BudgetCategory).filter(
+        BudgetCategory.scenario_id == scenario_id
+    ).options(
+        selectinload(BudgetCategory.items).selectinload(BudgetItem.values)
+    ).order_by(BudgetCategory.order, BudgetCategory.name).all()
+    
+    # Gerar PDF
+    pdf_generator = BudgetPDFGenerator(scenario, categories, db)
+    pdf_buffer = pdf_generator.generate()
+    
+    # Nome do arquivo
+    filename = f"Orcamento_{scenario.name.replace(' ', '_')}_{scenario.year}.pdf"
+    
+    # Retornar como streaming response
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
 

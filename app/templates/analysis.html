@@ -11,10 +11,10 @@
         </div>
         <div style="display: flex; gap: 0.75rem;">
             <a href="/scenarios/{{ scenario_id }}/summary" class="btn btn-primary">
-                📊 Relatório Resumido
+                📊 Sumário
             </a>
             <a href="/scenarios/{{ scenario_id }}/details" class="btn btn-primary">
-                📋 Relatório Detalhado
+                📋 Itens do Orçamento
             </a>
             <a href="/scenarios" class="btn btn-secondary">
                 ← Voltar
@@ -75,12 +75,35 @@ let currentCategories = [];
 let currentParameters = null;
 let excludedOptionalItems = new Set(); // IDs de itens opcionais desmarcados
 
+// Funções para persistir seleção de itens opcionais
+function saveOptionalItemsSelection() {
+    const excluded = Array.from(excludedOptionalItems);
+    setCookie(`optionalItems_scenario_${scenarioId}`, JSON.stringify(excluded));
+}
+
+function loadOptionalItemsSelection() {
+    const saved = getCookie(`optionalItems_scenario_${scenarioId}`);
+    if (saved) {
+        try {
+            const excluded = JSON.parse(saved);
+            excludedOptionalItems = new Set(excluded);
+            console.log(`[Analysis] Carregada seleção de itens opcionais: ${excluded.length} itens excluídos`);
+        } catch (e) {
+            console.error('[Analysis] Erro ao carregar seleção de itens opcionais:', e);
+            excludedOptionalItems = new Set();
+        }
+    }
+}
+
 async function loadAnalysis() {
     try {
         // Carregar cenário e categorias
         currentScenario = await BudgetAPI.getScenario(scenarioId);
         currentCategories = await BudgetAPI.getCategories(scenarioId);
         currentParameters = await ParametersAPI.getParameters();
+        
+        // Carregar seleção salva de itens opcionais
+        loadOptionalItemsSelection();
         
         // Renderizar análise
         recalculateAndRender();
@@ -133,9 +156,16 @@ function getOptionalItems(categories) {
 function toggleOptionalItem(itemId, isChecked) {
     if (isChecked) {
         excludedOptionalItems.delete(itemId);
+        console.log(`[Analysis] Item ${itemId} incluído na análise`);
     } else {
         excludedOptionalItems.add(itemId);
+        console.log(`[Analysis] Item ${itemId} excluído da análise`);
     }
+    
+    // Salvar seleção nos cookies
+    saveOptionalItemsSelection();
+    
+    // Recalcular totais e renderizar
     recalculateAndRender();
 }
 
@@ -244,7 +274,7 @@ function renderOptionalItemsSection() {
     }
     
     let html = `
-        <div class="card" style="background: #fef3c7; border: 2px solid #fbbf24;">
+        <div class="card" style="background: #fef3c7; border: 2px solid #fbbf24; margin-top: 1.5rem;">
             <h3 style="margin: 0 0 1rem 0; color: #92400e; display: flex; align-items: center; gap: 0.5rem;">
                 <span>⭐</span>
                 <span>Itens Opcionais - Simulação de Cenários</span>
@@ -300,9 +330,6 @@ function renderAnalysis(scenario, totals, parameters) {
         : 0;
     
     let html = `
-        <!-- Seção de Itens Opcionais -->
-        ${renderOptionalItemsSection()}
-        
         <!-- Status da Análise -->
         <div class="card" style="background: ${hasDeficit ? '#fef2f2' : '#f0fdf4'}; border: 2px solid ${hasDeficit ? '#fca5a5' : '#86efac'};">
             <div style="display: flex; align-items: center; gap: 1rem;">
@@ -329,11 +356,11 @@ function renderAnalysis(scenario, totals, parameters) {
                     <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Ano Base (${scenario.year})</p>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.revenue.budgeted)}</p>
                 </div>
-                <div style="margin-bottom: 0.5rem;">
+                <div style="margin-bottom: 0.5rem; border-top: 1px solid #e5e7eb;">
                     <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Realizado (${scenario.year})</p>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.revenue.realized)}</p>
                 </div>
-                <div style="margin-bottom: 0.5rem;">
+                <div style="margin-bottom: 0.5rem; border-top: 1px solid #e5e7eb;">
                     <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Previsto (${scenario.year + 1})</p>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: #10b981;">${formatCurrency(totals.revenue.estimated)}</p>
                 </div>
@@ -352,11 +379,11 @@ function renderAnalysis(scenario, totals, parameters) {
                     <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Ano Base (${scenario.year})</p>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.expense.budgeted)}</p>
                 </div>
-                <div style="margin-bottom: 0.5rem;">
+                <div style="margin-bottom: 0.5rem; border-top: 1px solid #e5e7eb;">
                     <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Realizado (${scenario.year})</p>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.expense.realized)}</p>
                 </div>
-                <div style="margin-bottom: 0.5rem;">
+                <div style="margin-bottom: 0.5rem; border-top: 1px solid #e5e7eb;">
                     <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Previsto (${scenario.year + 1})</p>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: #ef4444;">${formatCurrency(totals.expense.estimated)}</p>
                 </div>
@@ -375,11 +402,11 @@ function renderAnalysis(scenario, totals, parameters) {
                     <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Ano Base (${scenario.year})</p>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.balance.budgeted)}</p>
                 </div>
-                <div style="margin-bottom: 0.5rem;">
+                <div style="margin-bottom: 0.5rem; border-top: 1px solid #e5e7eb;">
                     <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Realizado (${scenario.year})</p>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: bold;">${formatCurrency(totals.balance.realized)}</p>
                 </div>
-                <div style="margin-bottom: 0.5rem;">
+                <div style="margin-bottom: 0.5rem; border-top: 1px solid #e5e7eb;">
                     <p style="margin: 0; color: #6b7280; font-size: 0.85rem;">Previsto (${scenario.year + 1})</p>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: bold; color: ${hasDeficit ? '#dc2626' : '#16a34a'};">
                         ${formatCurrency(totals.balance.estimated)}
@@ -394,11 +421,11 @@ function renderAnalysis(scenario, totals, parameters) {
             </div>
 
             <!-- Percentuais de Correção -->
-            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <div style="display: flex; flex-direction: column; height: 100%;">
                 <!-- Correção Prevista -->
-                <div class="card" style="background: #eff6ff; padding: 0.75rem 1rem;">
-                    <h3 style="margin: 0 0 0.25rem 0; color: #3b82f6; font-size: 0.95rem;">📈 Correção Prevista</h3>
-                    <div style="text-align: center;">
+                <div class="card" style="background: #eff6ff; padding: 0.75rem 1rem; flex: 1; display: flex; flex-direction: column; justify-content: center; margin-bottom: 0.375rem;">
+                    <h3 style="margin: 0 0 0.5rem 0; color: #3b82f6; font-size: 0.95rem;">📈 Correção Prevista</h3>
+                    <div style="text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center;">
                         <p style="margin: 0; font-size: 1.8rem; font-weight: bold; color: #3b82f6;">
                             ${increasePercent.toFixed(2)}%
                         </p>
@@ -409,9 +436,9 @@ function renderAnalysis(scenario, totals, parameters) {
                 </div>
                 
                 <!-- Correção Ideal -->
-                <div class="card" style="background: ${idealIncreasePercent <= increasePercent ? '#f0fdf4' : '#fef2f2'}; padding: 0.75rem 1rem;">
-                    <h3 style="margin: 0 0 0.25rem 0; color: ${idealIncreasePercent <= increasePercent ? '#16a34a' : '#dc2626'}; font-size: 0.95rem;">🎯 Correção Ideal</h3>
-                    <div style="text-align: center;">
+                <div class="card" style="background: ${idealIncreasePercent <= increasePercent ? '#f0fdf4' : '#fef2f2'}; padding: 0.75rem 1rem; flex: 1; display: flex; flex-direction: column; justify-content: center; margin-top: 0.375rem;">
+                    <h3 style="margin: 0 0 0.5rem 0; color: ${idealIncreasePercent <= increasePercent ? '#16a34a' : '#dc2626'}; font-size: 0.95rem;">🎯 Correção Ideal</h3>
+                    <div style="text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center;">
                         <p style="margin: 0; font-size: 1.8rem; font-weight: bold; color: ${idealIncreasePercent <= increasePercent ? '#16a34a' : '#dc2626'};">
                             ${idealIncreasePercent.toFixed(2)}%
                         </p>
@@ -422,6 +449,9 @@ function renderAnalysis(scenario, totals, parameters) {
                 </div>
             </div>
         </div>
+
+        <!-- Seção de Itens Opcionais -->
+        ${renderOptionalItemsSection()}
 
         <!-- Simulação de Taxas por Lote -->
         <div class="card" style="margin-top: 1.5rem;">

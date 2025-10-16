@@ -180,6 +180,7 @@ class CategorySummary(BaseModel):
     total_budgeted: float
     total_realized: Optional[float]
     total_adjusted: Optional[float]
+    total_estimated: float = 0.0
     variance: Optional[float]
     variance_percent: Optional[float]
 
@@ -190,6 +191,9 @@ class ScenarioSummary(BaseModel):
     total_expenses: float
     total_revenues: float
     balance: float
+    total_expenses_estimated: float = 0.0
+    total_revenues_estimated: float = 0.0
+    balance_estimated: float = 0.0
     categories: List[CategorySummary]
 
 

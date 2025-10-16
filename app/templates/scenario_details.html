@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Relatório Detalhado - Calculadora Orçamentária{% endblock %}
+{% block title %}Itens do Orçamento - Calculadora Orçamentária{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <h1 id="page-title">📋 Relatório Detalhado</h1>
+            <h1 id="page-title">📋 Itens do Orçamento</h1>
             <p class="page-description">Visualização detalhada de todas as categorias e itens do orçamento</p>
         </div>
         <div style="display: flex; gap: 0.75rem;">
             <a href="/scenarios/{{ scenario_id }}/summary" class="btn btn-primary">
-                📊 Relatório Resumido
+                📊 Sumário
             </a>
             <a href="/scenarios/{{ scenario_id }}/analysis" class="btn btn-primary" style="background: #8b5cf6;">
                 📈 Analisar
@@ -612,7 +612,7 @@ async function loadReport() {
         // Buscar categorias diretamente do endpoint para garantir todos os campos
         allCategories = await BudgetAPI.getCategories(scenarioId);
         
-        document.getElementById('page-title').textContent = `📋 Relatório Detalhado - ${currentScenario.name}`;
+        document.getElementById('page-title').textContent = `📋 Itens do Orçamento - ${currentScenario.name}`;
         
         const rootExpenses = allCategories.filter(cat => cat.item_type === 'expense' && !cat.parent_category_id);
         const rootRevenues = allCategories.filter(cat => cat.item_type === 'revenue' && !cat.parent_category_id);
