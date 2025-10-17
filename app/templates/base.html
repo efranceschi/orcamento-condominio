@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Calculadora Orçamentária{% endblock %}</title>
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon.png">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    
     <!-- Styles -->
     <link rel="stylesheet" href="/static/css/styles.css">
     
@@ -17,7 +22,9 @@
     <!-- Navbar -->
     <nav class="navbar">
         <div class="container navbar-content">
-            <a href="/" class="navbar-brand">💰 Calculadora Orçamentária</a>
+            <a href="/" class="navbar-brand">
+                <img src="/static/favicon.svg" alt="$" class="navbar-icon"> Calculadora Orçamentária
+            </a>
             <ul class="navbar-nav">
                 <li><a href="/scenarios" class="nav-link {% if '/scenarios' in request.url.path %}active{% endif %}">Orçamentos</a></li>
                 <li><a href="/categories" class="nav-link {% if '/categories' in request.url.path %}active{% endif %}">Categorias</a></li>
