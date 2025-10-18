@@ -16,7 +16,7 @@ if [ ! -f "$DB_FILE" ]; then
     # Executar script de inicialização (se existir)
     if [ -f "/app/migrations/init_db.py" ]; then
         echo "🚀 Executando init_db.py..."
-        cd /app && python migrations/init_db.py
+        cd /app && PYTHONPATH=/app python migrations/init_db.py
     fi
     
     echo "✅ Banco de dados criado com sucesso!"
@@ -27,7 +27,7 @@ fi
 # Executar migrations se necessário
 if [ -f "/app/migrations/migrate_add_users.py" ]; then
     echo "🔄 Executando migrations..."
-    cd /app && python migrations/migrate_add_users.py 2>/dev/null || echo "ℹ️  Migrations já aplicadas ou não necessárias."
+    cd /app && PYTHONPATH=/app python migrations/migrate_add_users.py 2>/dev/null || echo "ℹ️  Migrations já aplicadas ou não necessárias."
 fi
 
 echo "✅ Inicialização concluída!"

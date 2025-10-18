@@ -10,9 +10,9 @@ services:
     ports:
       - "8080:80"
     volumes:
-      # Persistir banco de dados
-      - ./data:/app/data
-      # Logs (opcional, para debug)
+      # Persistir banco de dados com volume gerenciado pelo Docker
+      - orcamento-data:/app/data
+      # Logs (opcional, para debug) - usando bind mounts para fácil acesso
       - ./logs/nginx:/var/log/nginx
       - ./logs/uvicorn:/var/log/uvicorn
       - ./logs/supervisor:/var/log/supervisor
@@ -34,6 +34,9 @@ networks:
     driver: bridge
 
 volumes:
-  data:
+  orcamento-data:
     driver: local
+    # Volume gerenciado pelo Docker para persistência dos dados do banco
+    # Os dados ficam em /var/lib/docker/volumes/ (Linux) ou equivalente no sistema
+    # Use: docker volume inspect orcamento_orcamento-data para ver o local exato
 
