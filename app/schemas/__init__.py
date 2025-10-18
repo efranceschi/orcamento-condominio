@@ -22,6 +22,14 @@ from .parameters import (
     ParametersUpdate,
     ParametersResponse
 )
+from .user import (
+    UserCreate,
+    UserUpdate,
+    UserResponse,
+    UserLogin,
+    Token,
+    TokenData
+)
 
 __all__ = [
     "BudgetScenarioCreate",
@@ -40,6 +48,12 @@ __all__ = [
     "RiskAnalysisResponse",
     "ParametersCreate",
     "ParametersUpdate",
-    "ParametersResponse"
+    "ParametersResponse",
+    "UserCreate",
+    "UserUpdate",
+    "UserResponse",
+    "UserLogin",
+    "Token",
+    "TokenData"
 ]
 

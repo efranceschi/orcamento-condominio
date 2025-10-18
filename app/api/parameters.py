@@ -7,7 +7,9 @@ from typing import Optional
 
 from app.database import get_db
 from app.models.parameters import SystemParameters
+from app.models.user import User
 from app.schemas.parameters import ParametersResponse, ParametersUpdate, ParametersCreate
+from app.services.auth_service import require_admin
 
 router = APIRouter(prefix="/api/parameters", tags=["parameters"])
 
@@ -36,7 +38,8 @@ def get_parameters(db: Session = Depends(get_db)):
 @router.put("", response_model=ParametersResponse)
 def update_parameters(
     params_data: ParametersUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Atualiza os parâmetros do sistema
@@ -59,7 +62,8 @@ def update_parameters(
 @router.post("", response_model=ParametersResponse)
 def create_parameters(
     params_data: ParametersCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Cria os parâmetros do sistema (apenas se não existir)

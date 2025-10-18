@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.models import BudgetCategory, BudgetItem, BudgetScenario
+from app.models import BudgetCategory, BudgetItem, BudgetScenario, User
 from app.schemas.budget import (
     BudgetScenarioCreate,
     BudgetScenarioUpdate,
@@ -20,6 +20,7 @@ from app.schemas.budget import (
 )
 from app.services.budget_service import BudgetService
 from app.services.pdf_service import BudgetPDFGenerator
+from app.services.auth_service import require_admin
 
 router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 
@@ -27,7 +28,8 @@ router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 @router.post("/scenarios", response_model=BudgetScenarioResponse, status_code=201)
 def create_scenario(
     scenario_data: BudgetScenarioCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Cria um novo cenário orçamentário
@@ -68,7 +70,8 @@ def get_scenario(
 def update_scenario(
     scenario_id: int,
     scenario_data: BudgetScenarioUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Atualiza um cenário orçamentário
@@ -83,7 +86,8 @@ def update_scenario(
 @router.delete("/scenarios/{scenario_id}", status_code=204)
 def delete_scenario(
     scenario_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Deleta um cenário orçamentário
@@ -151,7 +155,8 @@ def save_comparison(
 @router.post("/categories", response_model=CategoryResponse, status_code=201)
 def create_category(
     category_data: CategoryCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Cria uma nova categoria orçamentária
@@ -239,7 +244,8 @@ def get_category(
 def update_category(
     category_id: int,
     category_data: CategoryUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Atualiza uma categoria (sem propagar mudanças para itens filhos)
@@ -272,7 +278,8 @@ def update_category(
 @router.delete("/categories/{category_id}", status_code=204)
 def delete_category(
     category_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Deleta uma categoria
@@ -306,7 +313,8 @@ def delete_category(
 @router.post("/scenarios/{scenario_id}/initialize-categories")
 def initialize_root_categories(
     scenario_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Inicializa as categorias raiz (RECEITAS e DESPESAS) para um cenário
@@ -381,7 +389,7 @@ def initialize_root_categories(
 
 
 @router.post("/scenarios/{scenario_id}/close")
-def close_scenario(scenario_id: int, db: Session = Depends(get_db)):
+def close_scenario(scenario_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     """
     Finaliza um cenário orçamentário, tornando-o não editável
     """
@@ -402,7 +410,7 @@ def close_scenario(scenario_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/scenarios/{scenario_id}/reopen")
-def reopen_scenario(scenario_id: int, db: Session = Depends(get_db)):
+def reopen_scenario(scenario_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     """
     Reabre um cenário orçamentário finalizado, permitindo edição
     """
@@ -425,7 +433,8 @@ def reopen_scenario(scenario_id: int, db: Session = Depends(get_db)):
 @router.post("/scenarios/{scenario_id}/copy-from-previous-year")
 def copy_from_previous_year(
     scenario_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Copia estrutura e valores do orçamento do ano anterior para este cenário

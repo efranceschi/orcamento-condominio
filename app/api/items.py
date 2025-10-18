@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import BudgetItem, BudgetValue
+from app.models import BudgetItem, BudgetValue, User
 from app.schemas.budget import (
     BudgetItemCreate,
     BudgetItemResponse,
@@ -14,12 +14,13 @@ from app.schemas.budget import (
     BudgetValueUpdate,
     BudgetValueResponse
 )
+from app.services.auth_service import require_admin
 
 router = APIRouter(prefix="/api/items", tags=["items"])
 
 
 @router.post("", response_model=BudgetItemResponse)
-def create_item(item_data: BudgetItemCreate, db: Session = Depends(get_db)):
+def create_item(item_data: BudgetItemCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     """
     Cria um novo item orçamentário
     """
@@ -53,7 +54,8 @@ def get_item(item_id: int, db: Session = Depends(get_db)):
 def update_item(
     item_id: int,
     item_data: BudgetItemCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Atualiza um item orçamentário
@@ -76,7 +78,7 @@ def update_item(
 
 
 @router.delete("/{item_id}")
-def delete_item(item_id: int, db: Session = Depends(get_db)):
+def delete_item(item_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     """
     Deleta um item orçamentário
     """
@@ -90,7 +92,7 @@ def delete_item(item_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/values", response_model=BudgetValueResponse)
-def create_item_value(value_data: BudgetValueCreate, db: Session = Depends(get_db)):
+def create_item_value(value_data: BudgetValueCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     """
     Cria um novo valor para um item orçamentário
     """
@@ -110,7 +112,8 @@ def create_item_value(value_data: BudgetValueCreate, db: Session = Depends(get_d
 def update_item_value(
     value_id: int,
     value_data: BudgetValueUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Atualiza os valores de um item orçamentário

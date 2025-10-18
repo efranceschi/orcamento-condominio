@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.api import budget_router, analysis_router, parameters_router
+from app.api import budget_router, analysis_router, parameters_router, auth_router, users_router
 from app.api.items import router as items_router
 
 
@@ -49,6 +49,8 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
 # Include API routers
+app.include_router(auth_router)
+app.include_router(users_router)
 app.include_router(budget_router)
 app.include_router(analysis_router)
 app.include_router(items_router)
@@ -142,6 +144,22 @@ async def edit_budget_interactive_page(request: Request, scenario_id: int):
         "request": request,
         "scenario_id": scenario_id
     })
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """
+    Página de login
+    """
+    return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.get("/users", response_class=HTMLResponse)
+async def users_management_page(request: Request):
+    """
+    Página de gerenciamento de usuários (apenas admin)
+    """
+    return templates.TemplateResponse("users.html", {"request": request})
 
 
 if __name__ == "__main__":

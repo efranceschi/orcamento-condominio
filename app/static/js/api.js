@@ -2,6 +2,45 @@
 
 const API_BASE_URL = '/api';
 
+// Auth utilities
+function getAuthHeaders() {
+    const token = localStorage.getItem('access_token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+function getCurrentUser() {
+    return JSON.parse(localStorage.getItem('user') || '{}');
+}
+
+function isAdmin() {
+    const user = getCurrentUser();
+    return user.role === 'admin';
+}
+
+function isReadOnly() {
+    return !isAdmin();
+}
+
+// Hide elements for read-only users
+function applyReadOnlyMode() {
+    if (isReadOnly()) {
+        // Esconder todos os botões de edição, criação e exclusão
+        const editButtons = document.querySelectorAll('[data-action="create"], [data-action="edit"], [data-action="delete"]');
+        editButtons.forEach(btn => btn.style.display = 'none');
+        
+        // Esconder botões com classes específicas
+        const actionButtons = document.querySelectorAll('.btn-primary, .btn-danger, .btn-success');
+        actionButtons.forEach(btn => {
+            const text = btn.textContent.toLowerCase();
+            if (text.includes('criar') || text.includes('novo') || text.includes('adicionar') || 
+                text.includes('excluir') || text.includes('deletar') || text.includes('salvar') ||
+                text.includes('aprovar') || text.includes('editar')) {
+                btn.style.display = 'none';
+            }
+        });
+    }
+}
+
 // Utility functions
 function formatCurrency(value) {
     return new Intl.NumberFormat('pt-BR', {
