@@ -1,78 +1,58 @@
-# Multi-stage build for FastAPI application with Nginx
-FROM python:3.13-slim as builder
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    gfortran \
-    libopenblas-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Final stage
+# Dockerfile simplificado seguindo melhores práticas
 FROM python:3.13-slim
 
-# Set maintainer label
+# Metadados
 LABEL maintainer="Eduardo Franceschi"
 LABEL description="Sistema de Orçamento - FastAPI + Nginx"
 
-# Set environment variables
+# Variáveis de ambiente
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    PATH=/root/.local/bin:$PATH
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install runtime dependencies
+# Instalar dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     supervisor \
     curl \
-    libopenblas0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set work directory
+# Criar diretório de trabalho
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
+# Copiar requirements e instalar dependências Python
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
+# Copiar código da aplicação
 COPY app/ ./app/
 COPY migrations/ ./migrations/
 COPY main.py .
 
-# Show copied files
-RUN echo "Copied folders:"
-RUN find /app -type d
-
-RUN pip install --user --no-cache-dir -r requirements.txt
-
-# Create necessary directories
-RUN mkdir -p /var/log/supervisor /var/log/nginx /var/log/uvicorn /app/data
-
-# Copy configuration files
+# Copiar arquivos de configuração
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/entrypoint.sh /entrypoint.sh
 
-# Make scripts executable
-RUN chmod +x /app/migrations/*.py
+# Criar diretórios necessários
+RUN mkdir -p /var/log/supervisor \
+    /var/log/nginx \
+    /var/log/uvicorn \
+    /app/data
 
-# Set correct permissions
-RUN chown -R www-data:www-data /app && \
-    chown -R www-data:www-data /var/log/uvicorn
+# Tornar scripts executáveis
+RUN chmod +x /entrypoint.sh \
+    && chmod +x /app/migrations/*.py
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
     CMD curl -f http://localhost/health || exit 1
 
-# Expose port
+# Expor porta
 EXPOSE 80
 
-# Start supervisor (will manage nginx and uvicorn)
+# Ponto de entrada
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
