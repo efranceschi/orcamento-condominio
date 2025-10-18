@@ -37,6 +37,8 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /entrypoint.sh
 
+RUN chmod +x /entrypoint.sh
+
 # Criar diretórios necessários
 RUN mkdir -p /var/log/supervisor \
     /var/log/nginx \
