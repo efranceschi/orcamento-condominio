@@ -183,6 +183,31 @@
         margin-top: 1.5rem;
     }
 
+    /* Password field with toggle icon */
+    .password-field-wrapper {
+        position: relative;
+    }
+
+    .password-toggle-icon {
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 1.25rem;
+        user-select: none;
+        color: #6b7280;
+        transition: color 0.2s;
+    }
+
+    .password-toggle-icon:hover {
+        color: #374151;
+    }
+
+    .password-field-wrapper .form-input {
+        padding-right: 3rem;
+    }
+
     .loading-overlay {
         display: none;
         position: absolute;
@@ -275,13 +300,23 @@
             <div id="password-fields" style="display: none;">
                 <div class="form-group">
                     <label for="password" class="form-label">Senha *</label>
-                    <input type="password" id="password" class="form-input" minlength="8">
+                    <div class="password-field-wrapper">
+                        <input type="password" id="password" name="password" class="form-input" minlength="8" autocomplete="new-password">
+                        <span class="password-toggle-icon" onclick="togglePasswordVisibility()" title="Mostrar/Ocultar senha">
+                            👁️
+                        </span>
+                    </div>
                     <small style="color: #6b7280;">Mínimo 8 caracteres, incluindo letras, números e caractere especial</small>
                 </div>
                 
                 <div class="form-group">
                     <label for="confirm-password" class="form-label">Confirmar Senha *</label>
-                    <input type="password" id="confirm-password" class="form-input" minlength="8">
+                    <div class="password-field-wrapper">
+                        <input type="password" id="confirm-password" name="confirm-password" class="form-input" minlength="8" autocomplete="new-password">
+                        <span class="password-toggle-icon" onclick="togglePasswordVisibility()" title="Mostrar/Ocultar senha">
+                            👁️
+                        </span>
+                    </div>
                 </div>
             </div>
             
@@ -436,6 +471,16 @@
         document.getElementById('password').required = true;
         document.getElementById('confirm-password').required = true;
         
+        // Resetar os ícones de olho para o estado padrão
+        const passwordField = document.getElementById('password');
+        const confirmPasswordField = document.getElementById('confirm-password');
+        const icons = document.querySelectorAll('#password-fields .password-toggle-icon');
+        if (passwordField && confirmPasswordField) {
+            passwordField.type = 'password';
+            confirmPasswordField.type = 'password';
+            icons.forEach(icon => icon.textContent = '👁️');
+        }
+        
         document.getElementById('user-modal').classList.add('active');
     }
 
@@ -496,24 +541,52 @@
         
         return null; // Senha válida
     }
+    
+    function togglePasswordVisibility() {
+        const passwordField = document.getElementById('password');
+        const confirmPasswordField = document.getElementById('confirm-password');
+        const icons = document.querySelectorAll('#password-fields .password-toggle-icon');
+        
+        if (!passwordField || !confirmPasswordField) {
+            return;
+        }
+        
+        // Alternar tipo de ambos os campos
+        const isHidden = passwordField.type === 'password';
+        
+        passwordField.type = isHidden ? 'text' : 'password';
+        confirmPasswordField.type = isHidden ? 'text' : 'password';
+        
+        // Atualizar todos os ícones
+        const newIcon = isHidden ? '🙈' : '👁️';
+        icons.forEach(icon => {
+            icon.textContent = newIcon;
+        });
+    }
 
     async function saveUser(event) {
         event.preventDefault();
         
         const userId = document.getElementById('user-id').value;
-        const isEditing = document.getElementById('is-editing').value === 'true';
-        const username = document.getElementById('username').value;
-        const fullName = document.getElementById('full-name').value;
-        const password = document.getElementById('password').value;
-        const confirmPassword = document.getElementById('confirm-password').value;
+        const isEditingField = document.getElementById('is-editing');
+        const isEditing = isEditingField ? isEditingField.value === 'true' : false;
+        
+        const username = document.getElementById('username').value.trim();
+        const fullName = document.getElementById('full-name').value.trim();
         const role = document.getElementById('role').value;
         const isActive = document.getElementById('is-active').checked;
+        
+        const passwordElement = document.getElementById('password');
+        const confirmPasswordElement = document.getElementById('confirm-password');
+        
+        const password = passwordElement ? passwordElement.value.trim() : '';
+        const confirmPassword = confirmPasswordElement ? confirmPasswordElement.value.trim() : '';
         
         // Validações apenas ao criar
         if (!isEditing) {
             // Verificar se as senhas coincidem
             if (password !== confirmPassword) {
-                alert('As senhas não coincidem');
+                alert('As senhas não coincidem!');
                 return;
             }
             

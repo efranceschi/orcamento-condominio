@@ -16,6 +16,33 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     
+    <style>
+        /* Password field with toggle icon */
+        .password-field-wrapper {
+            position: relative;
+        }
+
+        .password-toggle-icon {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 1.25rem;
+            user-select: none;
+            color: #6b7280;
+            transition: color 0.2s;
+        }
+
+        .password-toggle-icon:hover {
+            color: #374151;
+        }
+
+        .password-field-wrapper .form-input {
+            padding-right: 3rem;
+        }
+    </style>
+    
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -74,18 +101,30 @@
             <form id="change-password-form" onsubmit="changePassword(event)">
                 <div class="form-group">
                     <label for="current-password" class="form-label">Senha Atual *</label>
-                    <input type="password" id="current-password" class="form-input" required autofocus>
+                    <div class="password-field-wrapper">
+                        <input type="password" id="current-password" class="form-input" required autofocus>
+                    </div>
                 </div>
                 
                 <div class="form-group">
                     <label for="new-password" class="form-label">Nova Senha *</label>
-                    <input type="password" id="new-password" class="form-input" required minlength="8">
+                    <div class="password-field-wrapper">
+                        <input type="password" id="new-password" class="form-input" required minlength="8">
+                        <span class="password-toggle-icon" id="change-pass-toggle" onclick="toggleChangePasswordVisibility()" title="Mostrar/Ocultar senha">
+                            👁️
+                        </span>
+                    </div>
                     <small style="color: #6b7280;">Mínimo 8 caracteres, incluindo letras, números e caractere especial</small>
                 </div>
                 
                 <div class="form-group">
-                    <label for="confirm-password" class="form-label">Confirmar Nova Senha *</label>
-                    <input type="password" id="confirm-password" class="form-input" required minlength="8">
+                    <label for="confirm-new-password" class="form-label">Confirmar Nova Senha *</label>
+                    <div class="password-field-wrapper">
+                        <input type="password" id="confirm-new-password" class="form-input" required minlength="8">
+                        <span class="password-toggle-icon" onclick="toggleChangePasswordVisibility()" title="Mostrar/Ocultar senha">
+                            👁️
+                        </span>
+                    </div>
                 </div>
                 
                 <div class="modal-footer">
@@ -188,14 +227,44 @@
         
         function closeChangePasswordModal() {
             document.getElementById('change-password-modal').classList.remove('active');
+            
+            // Resetar os campos e os ícones
+            const newPasswordField = document.getElementById('new-password');
+            const confirmPasswordField = document.getElementById('confirm-new-password');
+            const icons = document.querySelectorAll('#change-password-form .password-toggle-icon');
+            
+            if (newPasswordField && confirmPasswordField) {
+                newPasswordField.type = 'password';
+                confirmPasswordField.type = 'password';
+                icons.forEach(icon => icon.textContent = '👁️');
+            }
+        }
+        
+        function toggleChangePasswordVisibility() {
+            const newPasswordField = document.getElementById('new-password');
+            const confirmPasswordField = document.getElementById('confirm-new-password');
+            const icons = document.querySelectorAll('#change-password-form .password-toggle-icon');
+            
+            // Alternar tipo de ambos os campos (nova senha e confirmação)
+            if (newPasswordField.type === 'password') {
+                newPasswordField.type = 'text';
+                confirmPasswordField.type = 'text';
+                // Atualizar todos os ícones
+                icons.forEach(icon => icon.textContent = '🙈'); // Olho fechado
+            } else {
+                newPasswordField.type = 'password';
+                confirmPasswordField.type = 'password';
+                // Atualizar todos os ícones
+                icons.forEach(icon => icon.textContent = '👁️'); // Olho aberto
+            }
         }
         
         async function changePassword(event) {
             event.preventDefault();
             
-            const currentPassword = document.getElementById('current-password').value;
-            const newPassword = document.getElementById('new-password').value;
-            const confirmPassword = document.getElementById('confirm-password').value;
+            const currentPassword = document.getElementById('current-password').value.trim();
+            const newPassword = document.getElementById('new-password').value.trim();
+            const confirmPassword = document.getElementById('confirm-new-password').value.trim();
             
             // Validar senhas
             if (newPassword !== confirmPassword) {
