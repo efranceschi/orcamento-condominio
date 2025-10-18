@@ -61,7 +61,7 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/init-db.sh /usr/local/bin/init-db.sh
 
 # Make scripts executable
-RUN chmod +x /app/migrations/*.sh
+RUN chmod +x /app/migrations/*.py
 
 # Initialize database on first run
 RUN /usr/local/bin/init-db.sh
