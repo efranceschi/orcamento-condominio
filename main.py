@@ -3,13 +3,16 @@ Main FastAPI application
 Sistema de Gerenciamento Orçamentário para Condomínios
 """
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from datetime import datetime
 
-from app.database import init_db
+from app.database import init_db, get_db
 from app.api import budget_router, analysis_router, parameters_router, auth_router, users_router
 from app.api.items import router as items_router
 
@@ -55,6 +58,47 @@ app.include_router(budget_router)
 app.include_router(analysis_router)
 app.include_router(items_router)
 app.include_router(parameters_router)
+
+
+@app.get("/health")
+async def health_check(db: Session = Depends(get_db)):
+    """
+    Endpoint de health check para monitoramento da aplicação
+    
+    Verifica:
+    - Status geral da aplicação
+    - Conectividade com o banco de dados
+    
+    Retorna:
+    - 200 OK: Aplicação saudável
+    - 503 Service Unavailable: Aplicação com problemas
+    """
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0.0",
+        "checks": {
+            "database": "unknown"
+        }
+    }
+    
+    # Verificar conexão com banco de dados
+    try:
+        # Tentar executar uma query simples
+        db.execute(text("SELECT 1"))
+        health_status["checks"]["database"] = "healthy"
+    except Exception as e:
+        health_status["status"] = "unhealthy"
+        health_status["checks"]["database"] = f"unhealthy: {str(e)}"
+        return JSONResponse(
+            status_code=503,
+            content=health_status
+        )
+    
+    return JSONResponse(
+        status_code=200,
+        content=health_status
+    )
 
 
 @app.get("/")
