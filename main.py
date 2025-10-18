@@ -15,6 +15,7 @@ from datetime import datetime
 from app.database import init_db, get_db
 from app.api import budget_router, analysis_router, parameters_router, auth_router, users_router
 from app.api.items import router as items_router
+from app.api.backup import router as backup_router
 
 
 @asynccontextmanager
@@ -72,6 +73,7 @@ app.include_router(budget_router)
 app.include_router(analysis_router)
 app.include_router(items_router)
 app.include_router(parameters_router)
+app.include_router(backup_router)
 
 
 @app.get("/health")
@@ -218,6 +220,14 @@ async def users_management_page(request: Request):
     Página de gerenciamento de usuários (apenas admin)
     """
     return templates.TemplateResponse("users.html", {"request": request})
+
+
+@app.get("/backup", response_class=HTMLResponse)
+async def backup_page(request: Request):
+    """
+    Página de backup e restauração do banco de dados
+    """
+    return templates.TemplateResponse("backup.html", {"request": request})
 
 
 if __name__ == "__main__":

@@ -188,12 +188,28 @@ async function loadScenarios() {
 
 function displayScenarios(scenarios) {
     const container = document.getElementById('scenarios-container');
-    
+
     if (scenarios.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray">Nenhum orçamento encontrado</p>';
+        container.innerHTML = `
+            <div class="empty-state" style="text-align: center; padding: 3rem 1rem; background: #f8f9fa; border-radius: 8px;">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">📊</div>
+                <h3 style="color: #374151; margin-bottom: 0.5rem;">Nenhum orçamento disponível</h3>
+                <p style="color: #6b7280; margin-bottom: 2rem;">
+                    O banco de dados está vazio. Você pode criar um novo orçamento ou importar dados existentes.
+                </p>
+                <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    <button onclick="openCreateBudgetModal()" class="btn btn-primary">
+                        ➕ Criar Primeiro Orçamento
+                    </button>
+                    <button onclick="window.location.href='/backup'" class="btn btn-secondary">
+                        📥 Importar Dados
+                    </button>
+                </div>
+            </div>
+        `;
         return;
     }
-    
+
     container.innerHTML = '';
     
     scenarios.forEach(scenario => {

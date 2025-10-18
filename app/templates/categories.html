@@ -272,14 +272,19 @@ async function loadScenarios() {
         const scenarios = await API.getScenarios();
         const select = document.getElementById('scenario-select');
         select.innerHTML = '<option value="">Selecione um orçamento...</option>';
-        
+
+        if (scenarios.length === 0) {
+            select.innerHTML += '<option value="" disabled>Nenhum orçamento disponível. Crie um primeiro.</option>';
+            return;
+        }
+
         scenarios.forEach(scenario => {
             const option = document.createElement('option');
             option.value = scenario.id;
             option.textContent = `[${scenario.year}] ${scenario.name}`;
             select.appendChild(option);
         });
-        
+
         // Restaurar última seleção do cookie
         const lastScenarioId = getCookie('lastScenarioId');
         if (lastScenarioId) {
@@ -291,7 +296,8 @@ async function loadScenarios() {
         }
     } catch (error) {
         console.error('Erro ao carregar orçamentos:', error);
-        console.error('Erro ao carregar orçamentos');
+        const select = document.getElementById('scenario-select');
+        select.innerHTML = '<option value="" disabled>Erro ao carregar orçamentos. Banco vazio?</option>';
     }
 }
 

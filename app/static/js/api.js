@@ -77,14 +77,22 @@ class BudgetAPI {
         const params = new URLSearchParams();
         if (year !== null) params.append('year', year);
         if (isBaseline !== null) params.append('is_baseline', isBaseline);
-        
+
         if (params.toString()) {
             url += `?${params.toString()}`;
         }
-        
+
         const response = await fetch(url);
-        if (!response.ok) throw new Error('Erro ao buscar cenários');
-        return await response.json();
+        if (!response.ok) {
+            // Se o banco estiver vazio, retornar array vazio ao invés de erro
+            if (response.status === 404 || response.status === 500) {
+                console.warn('Banco de dados vazio ou não inicializado');
+                return [];
+            }
+            throw new Error('Erro ao buscar cenários');
+        }
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
     }
     
     static async getScenario(scenarioId) {
@@ -175,16 +183,24 @@ class BudgetAPI {
         if (scenarioId !== null) params.append('scenario_id', scenarioId);
         if (parentId !== null) params.append('parent_id', parentId);
         params.append('_t', Date.now()); // Anti-cache
-        
+
         if (params.toString()) {
             url += `?${params.toString()}`;
         }
-        
+
         const response = await fetch(url, {
             headers: { 'Cache-Control': 'no-cache' }
         });
-        if (!response.ok) throw new Error('Erro ao buscar categorias');
-        return await response.json();
+        if (!response.ok) {
+            // Se o banco estiver vazio, retornar array vazio
+            if (response.status === 404 || response.status === 500) {
+                console.warn('Nenhuma categoria encontrada ou banco não inicializado');
+                return [];
+            }
+            throw new Error('Erro ao buscar categorias');
+        }
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
     }
     
     static async getCategory(categoryId) {
