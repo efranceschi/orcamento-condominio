@@ -7,9 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Set work directory
-WORKDIR /app
-
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
@@ -17,10 +14,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gfortran \
     libopenblas-dev \
     && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Final stage
 FROM python:3.13-slim
@@ -48,13 +41,15 @@ COPY --from=builder /root/.local /root/.local
 # Set work directory
 WORKDIR /app
 
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+
 # Copy application files
 COPY app/ ./app/
+COPY migrations/ ./migrations/
 COPY main.py .
 
-# Copy migration and initialization scripts
-COPY init_db.py ./
-COPY migrate_add_users.py ./
+RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Create necessary directories
 RUN mkdir -p /var/log/supervisor /var/log/nginx /var/log/uvicorn /app/data
@@ -65,7 +60,7 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/init-db.sh /usr/local/bin/init-db.sh
 
 # Make scripts executable
-RUN chmod +x /usr/local/bin/init-db.sh
+RUN chmod +x /app/app/migrations/*.sh
 
 # Initialize database on first run
 RUN /usr/local/bin/init-db.sh
