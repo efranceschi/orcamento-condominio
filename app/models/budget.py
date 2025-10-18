@@ -86,6 +86,7 @@ class BudgetItem(Base):
     adjustment_percent = Column(Float, nullable=True)  # Percentual de reajuste do item
     repeats_next_budget = Column(Boolean, default=False)  # Se true, não calcula estimado (será zero no próximo orçamento)
     is_optional = Column(Boolean, default=False)  # Se true, marca o item como opcional para análise posterior
+    observations = Column(Text, nullable=True)  # Observações/comentários sobre o item
     
     # Relacionamentos
     category = relationship("BudgetCategory", back_populates="items")

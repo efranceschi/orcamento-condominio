@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models import BudgetItem, BudgetValue, User
 from app.schemas.budget import (
     BudgetItemCreate,
+    BudgetItemUpdate,
     BudgetItemResponse,
     BudgetValueCreate,
     BudgetValueUpdate,
@@ -53,12 +54,12 @@ def get_item(item_id: int, db: Session = Depends(get_db)):
 @router.put("/{item_id}", response_model=BudgetItemResponse)
 def update_item(
     item_id: int,
-    item_data: BudgetItemCreate,
+    item_data: BudgetItemUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
     """
-    Atualiza um item orçamentário
+    Atualiza um item orçamentário (atualização parcial)
     """
     item = db.query(BudgetItem).filter(BudgetItem.id == item_id).first()
     if not item:

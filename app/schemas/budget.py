@@ -94,10 +94,23 @@ class BudgetItemBase(BaseModel):
     adjustment_percent: Optional[float] = None
     repeats_next_budget: bool = False
     is_optional: bool = False
+    observations: Optional[str] = None
 
 
 class BudgetItemCreate(BudgetItemBase):
     category_id: int
+
+
+class BudgetItemUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category_id: Optional[int] = None
+    unit: Optional[str] = None
+    order: Optional[int] = None
+    adjustment_percent: Optional[float] = None
+    repeats_next_budget: Optional[bool] = None
+    is_optional: Optional[bool] = None
+    observations: Optional[str] = None
 
 
 class BudgetItemResponse(BudgetItemBase):

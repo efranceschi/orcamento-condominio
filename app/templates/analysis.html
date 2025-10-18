@@ -96,6 +96,14 @@ function loadOptionalItemsSelection() {
 }
 
 async function loadAnalysis() {
+    // Verificar autenticação antes de fazer requisições
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.log('Usuário não autenticado, redirecionando...');
+        window.location.href = '/login';
+        return;
+    }
+    
     try {
         // Carregar cenário e categorias
         currentScenario = await BudgetAPI.getScenario(scenarioId);

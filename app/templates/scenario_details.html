@@ -138,6 +138,24 @@
     transform: scale(1.1);
 }
 
+.btn-icon-info {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon-info:hover {
+    background-color: #e0f2fe;
+    transform: scale(1.1);
+}
+
 .detail-controls {
     display: flex;
     justify-content: space-between;
@@ -379,6 +397,81 @@
     font-size: 0.75rem;
     font-weight: 600;
 }
+
+/* Estilos para botões de observações/comentários */
+.btn-icon-comment-filled {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 2px solid #f59e0b;
+    position: relative;
+}
+
+.btn-icon-comment-filled:hover {
+    background: linear-gradient(135deg, #fde68a 0%, #fbbf24 100%);
+    transform: scale(1.15);
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+}
+
+.btn-icon-comment-empty {
+    background: #f3f4f6;
+    border: 2px dashed #d1d5db;
+}
+
+.btn-icon-comment-empty:hover {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+    transform: scale(1.1);
+}
+
+/* Tooltip para observações */
+.observations-tooltip {
+    position: relative;
+}
+
+.observations-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: #1f2937;
+    color: white;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: normal;
+    white-space: pre-wrap;
+    max-width: 300px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 1000;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    line-height: 1.5;
+}
+
+.observations-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-2px);
+    border: 6px solid transparent;
+    border-top-color: #1f2937;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 1001;
+}
+
+.observations-tooltip:hover::after,
+.observations-tooltip:hover::before {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-4px);
+}
+
+.observations-tooltip:hover::before {
+    transform: translateX(-50%) translateY(0px);
+}
 </style>
 
 <!-- Modal: Editar Percentual de Reajuste -->
@@ -520,6 +613,38 @@
     </div>
 </div>
 
+<!-- Modal: Observações do Item -->
+<div class="modal" id="observations-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h2 class="modal-title">💬 Observações do Item</h2>
+            <button onclick="closeObservationsModal()" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="observations-form" onsubmit="saveObservations(event)">
+                <input type="hidden" id="observations-item-id">
+                <div class="form-group">
+                    <label for="observations-item-name-display">Item</label>
+                    <input type="text" id="observations-item-name-display" class="form-input" readonly style="background-color: #f3f4f6;">
+                </div>
+                <div class="form-group">
+                    <label for="observations-text">Observações / Comentários</label>
+                    <textarea id="observations-text" class="form-textarea" rows="6" placeholder="Digite aqui as observações sobre este item..."></textarea>
+                    <small class="text-muted">Use este campo para adicionar comentários, justificativas ou informações adicionais sobre o item.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" onclick="closeObservationsModal()" class="btn btn-secondary">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        💾 Salvar Observações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 const scenarioId = {{ scenario_id }};
 let currentScenario = null;
@@ -603,6 +728,14 @@ function createUsedBar(budgeted, totalUsed) {
 }
 
 async function loadReport() {
+    // Verificar autenticação antes de fazer requisições
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.log('Usuário não autenticado, redirecionando...');
+        window.location.href = '/login';
+        return;
+    }
+    
     try {
         // Carregar estado de colapso das categorias
         loadCollapsedState();
@@ -710,6 +843,53 @@ function getBudgetedColor(budgeted) {
         return '#dc2626'; // Vermelho
     }
     return null; // Cor padrão
+}
+
+// Criar botão de observações com visual diferenciado
+function createObservationsButton(item) {
+    const hasObservations = item.observations && item.observations.trim().length > 0;
+
+    // Escapar aspas simples e quebras de linha no texto das observações
+    const escapedObservations = item.observations
+        ? item.observations.replace(/'/g, "\\'").replace(/\n/g, "\\n")
+        : 'null';
+
+    // Preparar preview do texto (primeiros 100 caracteres)
+    let tooltipText = '';
+    if (hasObservations) {
+        const preview = item.observations.length > 100
+            ? item.observations.substring(0, 100) + '...'
+            : item.observations;
+        // Escapar HTML e quebras de linha para tooltip
+        tooltipText = preview
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/\n/g, ' ');
+    }
+
+    if (hasObservations) {
+        // Item COM observações - ícone preenchido com preview
+        return `
+            <button
+                onclick="openObservationsModal(${item.id}, '${item.name.replace(/'/g, "\\'")}', '${escapedObservations}'); event.stopPropagation();"
+                class="btn-icon btn-icon-comment-filled observations-tooltip"
+                data-tooltip="${tooltipText}">
+                📝
+            </button>
+        `;
+    } else {
+        // Item SEM observações - ícone vazio/simples
+        return `
+            <button
+                onclick="openObservationsModal(${item.id}, '${item.name.replace(/'/g, "\\'")}', null); event.stopPropagation();"
+                class="btn-icon btn-icon-comment-empty"
+                title="Adicionar observações">
+                💭
+            </button>
+        `;
+    }
 }
 
 // Calcular totais de uma categoria (incluindo subcategorias)
@@ -860,10 +1040,13 @@ function renderCategoryHierarchy(rootCategories, allCategories, color, level) {
                     : '';
                 
                 // Indicador visual para item que não se repete
-                const noRepeatIndicator = item.repeats_next_budget 
-                    ? `<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.25rem;" title="Não se repete no próximo orçamento">🚫</span>` 
+                const noRepeatIndicator = item.repeats_next_budget
+                    ? `<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.25rem;" title="Não se repete no próximo orçamento">🚫</span>`
                     : '';
-                
+
+                // Criar botão de observações com visual diferente
+                const observationsButton = createObservationsButton(item);
+
                 html += `
                     <div class="item-row" style="font-size: 0.9rem; grid-template-columns: 2fr 1fr 1fr 1.5fr 0.8fr 1fr 120px;">
                         <div>${item.name}${optionalIndicator}${noRepeatIndicator}</div>
@@ -873,6 +1056,7 @@ function renderCategoryHierarchy(rootCategories, allCategories, color, level) {
                         <div style="text-align: center; color: #10b981; font-weight: 500;">${adjustmentDisplay}</div>
                         <div style="text-align: right; color: #6366f1; font-weight: 500;">${formatCurrency(estimated)}</div>
                         <div style="text-align: center; display: flex; gap: 0.25rem; justify-content: center;">
+                            ${observationsButton}
                             <button onclick="openItemModal(${item.id}, ${category.id}); event.stopPropagation();" class="btn-icon btn-icon-primary" title="Editar Item">
                                 ✏️
                             </button>
@@ -1211,6 +1395,44 @@ function closeDeleteItemModal() {
 function confirmDeleteItem() {
     if (deleteItemCallback) {
         deleteItemCallback();
+    }
+}
+
+// Modal de Observações
+function openObservationsModal(itemId, itemName, observations) {
+    document.getElementById('observations-item-id').value = itemId;
+    document.getElementById('observations-item-name-display').value = itemName;
+    document.getElementById('observations-text').value = observations || '';
+    document.getElementById('observations-modal').style.display = 'flex';
+
+    // Focar no textarea após o modal ser exibido
+    setTimeout(() => {
+        document.getElementById('observations-text').focus();
+    }, 100);
+}
+
+function closeObservationsModal() {
+    document.getElementById('observations-modal').style.display = 'none';
+}
+
+async function saveObservations(event) {
+    event.preventDefault();
+
+    const itemId = document.getElementById('observations-item-id').value;
+    const observations = document.getElementById('observations-text').value.trim();
+
+    try {
+        // Atualizar item com as observações
+        await BudgetAPI.updateItem(itemId, {
+            observations: observations || null
+        });
+
+        closeObservationsModal();
+        await loadReport();
+        showAlertDetail('Observações salvas com sucesso!', 'Sucesso');
+    } catch (error) {
+        console.error('Erro ao salvar observações:', error);
+        showAlertDetail('Erro ao salvar observações: ' + error.message);
     }
 }
 

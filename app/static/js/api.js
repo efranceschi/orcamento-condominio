@@ -82,7 +82,9 @@ class BudgetAPI {
             url += `?${params.toString()}`;
         }
 
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            headers: getAuthHeaders()
+        });
         if (!response.ok) {
             // Se o banco estiver vazio, retornar array vazio ao invés de erro
             if (response.status === 404 || response.status === 500) {
@@ -97,7 +99,10 @@ class BudgetAPI {
     
     static async getScenario(scenarioId) {
         const response = await fetch(`${API_BASE_URL}/budgets/scenarios/${scenarioId}?_t=${Date.now()}`, {
-            headers: { 'Cache-Control': 'no-cache' }
+            headers: { 
+                'Cache-Control': 'no-cache',
+                ...getAuthHeaders()
+            }
         });
         if (!response.ok) throw new Error('Erro ao buscar cenário');
         return await response.json();
@@ -106,7 +111,10 @@ class BudgetAPI {
     static async createScenario(data) {
         const response = await fetch(`${API_BASE_URL}/budgets/scenarios`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify(data)
         });
         if (!response.ok) throw new Error('Erro ao criar cenário');
@@ -116,7 +124,10 @@ class BudgetAPI {
     static async updateScenario(scenarioId, data) {
         const response = await fetch(`${API_BASE_URL}/budgets/scenarios/${scenarioId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify(data)
         });
         if (!response.ok) throw new Error('Erro ao atualizar cenário');
@@ -125,20 +136,24 @@ class BudgetAPI {
     
     static async deleteScenario(scenarioId) {
         const response = await fetch(`${API_BASE_URL}/budgets/scenarios/${scenarioId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
         if (!response.ok) throw new Error('Erro ao deletar cenário');
     }
     
     static async getScenarioSummary(scenarioId) {
-        const response = await fetch(`${API_BASE_URL}/budgets/scenarios/${scenarioId}/summary`);
+        const response = await fetch(`${API_BASE_URL}/budgets/scenarios/${scenarioId}/summary`, {
+            headers: getAuthHeaders()
+        });
         if (!response.ok) throw new Error('Erro ao buscar resumo do cenário');
         return await response.json();
     }
     
     static async compareScenarios(baseId, comparedId) {
         const response = await fetch(
-            `${API_BASE_URL}/budgets/scenarios/compare/${baseId}/${comparedId}`
+            `${API_BASE_URL}/budgets/scenarios/compare/${baseId}/${comparedId}`,
+            { headers: getAuthHeaders() }
         );
         if (!response.ok) throw new Error('Erro ao comparar cenários');
         return await response.json();
@@ -148,7 +163,10 @@ class BudgetAPI {
     static async createSimulation(data) {
         const response = await fetch(`${API_BASE_URL}/analysis/simulations`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify(data)
         });
         if (!response.ok) {
@@ -161,7 +179,8 @@ class BudgetAPI {
     // Risk Analysis
     static async getRiskAnalysis(scenarioId) {
         const response = await fetch(
-            `${API_BASE_URL}/analysis/scenarios/${scenarioId}/risk-analysis`
+            `${API_BASE_URL}/analysis/scenarios/${scenarioId}/risk-analysis`,
+            { headers: getAuthHeaders() }
         );
         if (!response.ok) throw new Error('Erro ao buscar análise de risco');
         return await response.json();
@@ -170,7 +189,10 @@ class BudgetAPI {
     static async calculateIdealBudget(scenarioId) {
         const response = await fetch(
             `${API_BASE_URL}/analysis/scenarios/${scenarioId}/ideal-budget`,
-            { method: 'POST' }
+            { 
+                method: 'POST',
+                headers: getAuthHeaders()
+            }
         );
         if (!response.ok) throw new Error('Erro ao calcular orçamento ideal');
         return await response.json();
@@ -189,7 +211,10 @@ class BudgetAPI {
         }
 
         const response = await fetch(url, {
-            headers: { 'Cache-Control': 'no-cache' }
+            headers: { 
+                'Cache-Control': 'no-cache',
+                ...getAuthHeaders()
+            }
         });
         if (!response.ok) {
             // Se o banco estiver vazio, retornar array vazio
@@ -204,7 +229,9 @@ class BudgetAPI {
     }
     
     static async getCategory(categoryId) {
-        const response = await fetch(`${API_BASE_URL}/budgets/categories/${categoryId}`);
+        const response = await fetch(`${API_BASE_URL}/budgets/categories/${categoryId}`, {
+            headers: getAuthHeaders()
+        });
         if (!response.ok) throw new Error('Erro ao buscar categoria');
         return await response.json();
     }
@@ -212,7 +239,10 @@ class BudgetAPI {
     static async createCategory(data) {
         const response = await fetch(`${API_BASE_URL}/budgets/categories`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify(data)
         });
         if (!response.ok) throw new Error('Erro ao criar categoria');
@@ -225,7 +255,8 @@ class BudgetAPI {
             method: 'PUT',
             headers: { 
                 'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache'
+                'Cache-Control': 'no-cache',
+                ...getAuthHeaders()
             },
             body: JSON.stringify(data)
         });
@@ -245,14 +276,17 @@ class BudgetAPI {
     
     static async deleteCategory(categoryId) {
         const response = await fetch(`${API_BASE_URL}/budgets/categories/${categoryId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
         if (!response.ok) throw new Error('Erro ao deletar categoria');
     }
     
     // Items
     static async getItem(itemId) {
-        const response = await fetch(`${API_BASE_URL}/items/${itemId}`);
+        const response = await fetch(`${API_BASE_URL}/items/${itemId}`, {
+            headers: getAuthHeaders()
+        });
         if (!response.ok) throw new Error('Erro ao buscar item');
         return await response.json();
     }
@@ -260,7 +294,10 @@ class BudgetAPI {
     static async createItem(data) {
         const response = await fetch(`${API_BASE_URL}/items`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify(data)
         });
         if (!response.ok) throw new Error('Erro ao criar item');
@@ -270,7 +307,10 @@ class BudgetAPI {
     static async updateItem(itemId, data) {
         const response = await fetch(`${API_BASE_URL}/items/${itemId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify(data)
         });
         if (!response.ok) throw new Error('Erro ao atualizar item');
@@ -279,7 +319,8 @@ class BudgetAPI {
     
     static async deleteItem(itemId) {
         const response = await fetch(`${API_BASE_URL}/items/${itemId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
         if (!response.ok) throw new Error('Erro ao deletar item');
     }
@@ -287,7 +328,10 @@ class BudgetAPI {
     static async createItemValue(data) {
         const response = await fetch(`${API_BASE_URL}/items/values`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify(data)
         });
         if (!response.ok) throw new Error('Erro ao criar valor do item');
@@ -297,7 +341,10 @@ class BudgetAPI {
     static async updateItemValue(valueId, data) {
         const response = await fetch(`${API_BASE_URL}/items/values/${valueId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify(data)
         });
         if (!response.ok) throw new Error('Erro ao atualizar valor do item');

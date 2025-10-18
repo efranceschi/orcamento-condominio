@@ -315,11 +315,7 @@
     text-align: center;
 }
 
-.adjustment-badge-small:hover {
-    background-color: #fde68a;
-    transform: scale(1.05);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
+/* Removido hover effect - modo somente leitura */
 
 .modal {
     display: none;
@@ -493,6 +489,14 @@ function getCookie(name) {
 }
 
 async function loadSummary() {
+    // Verificar autenticação antes de fazer requisições
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.log('Usuário não autenticado, redirecionando...');
+        window.location.href = '/login';
+        return;
+    }
+    
     try {
         const scenario = await BudgetAPI.getScenario(scenarioId);
         const summary = await BudgetAPI.getScenarioSummary(scenarioId);
@@ -755,7 +759,7 @@ function renderCategoryTable(categories) {
             <tr>
                 <td>
                     <strong>${category.category_name}</strong>
-                    <span class="adjustment-badge-small" onclick="openAdjustmentModalSummary('${category.category_name.replace(/'/g, "\\'")}', ${adjustmentPercent}); event.stopPropagation();" title="Clique para editar o reajuste">
+                    <span class="adjustment-badge-small" title="Visualização apenas - edite na tela de Categorias" style="cursor: default;">
                         ${adjustmentText}
                     </span>
                 </td>
