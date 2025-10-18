@@ -25,6 +25,8 @@ async def lifespan(app: FastAPI):
     """
     import os
     from pathlib import Path
+    from alembic.config import Config
+    from alembic import command
 
     # Verificar se o arquivo de banco de dados existe
     db_path = Path("data/condominio_orcamento.db")
@@ -38,6 +40,17 @@ async def lifespan(app: FastAPI):
         print("✓ Banco de dados inicializado com sucesso")
     else:
         print("✓ Banco de dados já existe")
+
+    # Aplicar migrations automaticamente
+    try:
+        print("🔄 Verificando migrations...")
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        print("✓ Migrations aplicadas com sucesso")
+    except Exception as e:
+        print(f"⚠️  Aviso: Erro ao aplicar migrations: {e}")
+        # Não falhar o startup se migrations falharem
+        pass
 
     yield
     # Cleanup (if needed) would go here

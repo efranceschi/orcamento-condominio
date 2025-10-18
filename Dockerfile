@@ -28,8 +28,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código da aplicação
 COPY app/ ./app/
-COPY migrations/ ./migrations/
+COPY alembic/ ./alembic/
 COPY main.py .
+COPY alembic.ini .
 
 # Copiar arquivos de configuração
 COPY docker/nginx.conf /etc/nginx/nginx.conf
@@ -41,10 +42,6 @@ RUN mkdir -p /var/log/supervisor \
     /var/log/nginx \
     /var/log/uvicorn \
     /app/data
-
-# Tornar scripts executáveis
-RUN chmod +x /entrypoint.sh \
-    && chmod +x /app/migrations/*.py
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
