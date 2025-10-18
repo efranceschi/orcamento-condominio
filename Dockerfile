@@ -59,13 +59,9 @@ RUN mkdir -p /var/log/supervisor /var/log/nginx /var/log/uvicorn /app/data
 # Copy configuration files
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY docker/init-db.sh /usr/local/bin/init-db.sh
 
 # Make scripts executable
 RUN chmod +x /app/migrations/*.py
-
-# Initialize database on first run
-RUN /usr/local/bin/init-db.sh
 
 # Set correct permissions
 RUN chown -R www-data:www-data /app && \

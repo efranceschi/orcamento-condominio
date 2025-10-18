@@ -22,8 +22,22 @@ async def lifespan(app: FastAPI):
     """
     Lifespan event handler - initialize database on startup
     """
-    # init_db()
-    # print("✓ Banco de dados inicializado")
+    import os
+    from pathlib import Path
+
+    # Verificar se o arquivo de banco de dados existe
+    db_path = Path("data/condominio_orcamento.db")
+
+    if not db_path.exists():
+        print("🔍 Banco de dados não encontrado. Inicializando...")
+        # Criar diretório se não existir
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        # Inicializar banco de dados
+        init_db()
+        print("✓ Banco de dados inicializado com sucesso")
+    else:
+        print("✓ Banco de dados já existe")
+
     yield
     # Cleanup (if needed) would go here
 
