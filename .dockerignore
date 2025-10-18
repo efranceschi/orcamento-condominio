@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+CHANGELOG.md
+README.md
+docs/
+
+# Scripts de desenvolvimento
+build_windows.py
+create_package.py
+start_windows.bat
+README_WINDOWS.txt
+
+# Arquivos de migração
+migrate_*.py
+init_db.py
+reset_db.py
+test_api.py
+exemplo_lotes.py
+clean_duplicates.py
+fix_categories.py
+
+# Database (será criado no container)
+data/*.db
+
+# Temporary files
+*.tmp
+*.log
+*.xlsx
+

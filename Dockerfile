@@ -1,36 +1,85 @@
-# Use the official Nginx image as base
-FROM nginx:alpine
+# Multi-stage build for FastAPI application with Nginx
+FROM python:3.13-slim as builder
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Set work directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    gfortran \
+    libopenblas-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# Final stage
+FROM python:3.13-slim
 
 # Set maintainer label
-LABEL maintainer="Wise Informática <contato@wiseinformatica.com>"
-LABEL description="Wise Informática - Website corporativo"
+LABEL maintainer="Eduardo Franceschi"
+LABEL description="Sistema de Orçamento - FastAPI + Nginx"
 
-# Remove default nginx static assets
-RUN rm -rf /usr/share/nginx/html/*
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH=/root/.local/bin:$PATH
 
-# Copy website files to nginx html directory
-COPY index.html /usr/share/nginx/html/
-COPY css/ /usr/share/nginx/html/css/
-COPY js/ /usr/share/nginx/html/js/
-COPY images/ /usr/share/nginx/html/images/
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nginx \
+    supervisor \
+    curl \
+    libopenblas0 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy nginx configuration files
-COPY nginx/nginx.conf /etc/nginx/nginx.conf
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+# Copy Python dependencies from builder
+COPY --from=builder /root/.local /root/.local
 
-# Create directory for nginx logs (if not exists)
-RUN mkdir -p /var/log/nginx
+# Set work directory
+WORKDIR /app
+
+# Copy application files
+COPY app/ ./app/
+COPY main.py .
+
+# Copy migration and initialization scripts
+COPY init_db.py ./
+COPY migrate_add_users.py ./
+
+# Create necessary directories
+RUN mkdir -p /var/log/supervisor /var/log/nginx /var/log/uvicorn /app/data
+
+# Copy configuration files
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/init-db.sh /usr/local/bin/init-db.sh
+
+# Make scripts executable
+RUN chmod +x /usr/local/bin/init-db.sh
+
+# Initialize database on first run
+RUN /usr/local/bin/init-db.sh
 
 # Set correct permissions
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chmod -R 755 /usr/share/nginx/html
+RUN chown -R www-data:www-data /app && \
+    chown -R www-data:www-data /var/log/uvicorn
 
-# Add health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD curl -f http://localhost/health || exit 1
 
-# Expose port 80
+# Expose port
 EXPOSE 80
 
-# Use the default nginx CMD
-CMD ["nginx", "-g", "daemon off;"]
+# Start supervisor (will manage nginx and uvicorn)
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

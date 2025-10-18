@@ -1,28 +1,37 @@
-# GitLab CI/CD Pipeline for Wise Informática
+# GitLab CI/CD Pipeline - Sistema de Orçamento
 variables:
   IMAGE_NAME: "orcamento-flores"
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
 stages:
   - test
   - build
   - deploy
 
-# Test stage - validate files and configurations
+# Test stage - validate Python code and configurations
 test:
   stage: test
-  image: nginx:alpine
+  image: python:3.13-slim
   tags:
     - docker
     - dev
+  before_script:
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
   script:
-    - echo "🧪 Testing nginx configuration..."
-    - nginx -t -c nginx.conf
-    - echo "✅ Nginx configuration is valid"
-    - echo "📄 Checking HTML syntax..."
-    - ls -la
+    - echo "🧪 Testing Python application..."
+    - python -m py_compile main.py
+    - echo "✅ Python syntax is valid"
+    - echo "🔍 Checking required files..."
+    - test -f docker/nginx.conf && echo "✅ Nginx config found"
+    - test -f docker/supervisord.conf && echo "✅ Supervisor config found"
+    - test -f requirements.txt && echo "✅ Requirements file found"
     - echo "✅ All required files are present"
+  cache:
+    paths:
+      - .cache/pip
   only:
     - branches
   except:
