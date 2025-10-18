@@ -46,6 +46,10 @@ COPY app/ ./app/
 COPY migrations/ ./migrations/
 COPY main.py .
 
+# Show copied files
+RUN echo "Copied folders:"
+RUN find /app -type d
+
 RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Create necessary directories
