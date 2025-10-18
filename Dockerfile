@@ -35,9 +35,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libopenblas0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
-
 # Set work directory
 WORKDIR /app
 
