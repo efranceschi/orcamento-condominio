@@ -472,6 +472,15 @@
 .observations-tooltip:hover::before {
     transform: translateX(-50%) translateY(0px);
 }
+
+/* Destaque para itens novos (orçado = 0) */
+.item-row.new-item {
+    background-color: #d1fae5 !important;
+}
+
+.item-row.new-item:hover {
+    background-color: #a7f3d0 !important;
+}
 </style>
 
 <!-- Modal: Editar Percentual de Reajuste -->
@@ -1046,9 +1055,12 @@ function renderCategoryHierarchy(rootCategories, allCategories, color, level) {
 
                 // Criar botão de observações com visual diferente
                 const observationsButton = createObservationsButton(item);
+                
+                // Adicionar classe para itens novos (orçado = 0)
+                const newItemClass = budgeted === 0 ? ' new-item' : '';
 
                 html += `
-                    <div class="item-row" style="font-size: 0.9rem; grid-template-columns: 2fr 1fr 1fr 1.5fr 0.8fr 1fr 120px;">
+                    <div class="item-row${newItemClass}" style="font-size: 0.9rem; grid-template-columns: 2fr 1fr 1fr 1.5fr 0.8fr 1fr 120px;">
                         <div>${item.name}${optionalIndicator}${noRepeatIndicator}</div>
                         <div style="${budgetedStyle}">${formatCurrency(budgeted)}</div>
                         <div style="${realizedStyle}">${formatCurrency(realized)}</div>
