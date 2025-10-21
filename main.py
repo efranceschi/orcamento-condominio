@@ -11,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime
+import logging
+import time
 
 from app.database import init_db, get_db
 from app.api import budget_router, analysis_router, parameters_router, auth_router, users_router
@@ -66,6 +68,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -74,6 +83,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """
+    Middleware para registrar todas as requisições HTTP
+    """
+    start_time = time.time()
+    
+    # Log da requisição
+    logger.info(f"→ {request.method} {request.url.path}")
+    
+    # Processar requisição
+    response = await call_next(request)
+    
+    # Calcular tempo de processamento
+    process_time = (time.time() - start_time) * 1000
+    
+    # Log da resposta
+    logger.info(
+        f"← {request.method} {request.url.path} "
+        f"- Status: {response.status_code} "
+        f"- Tempo: {process_time:.2f}ms"
+    )
+    
+    # Adicionar header com tempo de processamento
+    response.headers["X-Process-Time"] = f"{process_time:.2f}ms"
+    
+    return response
 
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
