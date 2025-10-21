@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.user import User
 from app.schemas.budget import (
     SimulationRequest,
     SimulationResponse,
@@ -12,6 +13,7 @@ from app.schemas.budget import (
     BudgetScenarioResponse
 )
 from app.services.analysis_service import AnalysisService
+from app.services.auth_service import get_current_user, require_admin
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
@@ -19,7 +21,8 @@ router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 @router.post("/simulations", response_model=SimulationResponse, status_code=201)
 def create_simulation(
     simulation_request: SimulationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Cria uma nova simulação orçamentária
@@ -40,7 +43,8 @@ def create_simulation(
 @router.get("/scenarios/{scenario_id}/risk-analysis", response_model=RiskAnalysisResponse)
 def analyze_risk(
     scenario_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Analisa os riscos de um cenário orçamentário
@@ -61,7 +65,8 @@ def analyze_risk(
 @router.post("/scenarios/{scenario_id}/ideal-budget", response_model=BudgetScenarioResponse)
 def calculate_ideal_budget(
     scenario_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Calcula um orçamento ideal baseado em dados históricos

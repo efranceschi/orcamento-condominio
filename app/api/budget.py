@@ -20,7 +20,7 @@ from app.schemas.budget import (
 )
 from app.services.budget_service import BudgetService
 from app.services.pdf_service import BudgetPDFGenerator
-from app.services.auth_service import require_admin
+from app.services.auth_service import require_admin, get_current_user
 
 router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 
@@ -42,7 +42,8 @@ def create_scenario(
 def list_scenarios(
     year: Optional[int] = Query(None, description="Filtrar por ano"),
     is_baseline: Optional[bool] = Query(None, description="Filtrar por cenário base"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Lista todos os cenários orçamentários com filtros opcionais
@@ -54,7 +55,8 @@ def list_scenarios(
 @router.get("/scenarios/{scenario_id}", response_model=BudgetScenarioResponse)
 def get_scenario(
     scenario_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Obtém um cenário orçamentário específico
@@ -101,7 +103,8 @@ def delete_scenario(
 @router.get("/scenarios/{scenario_id}/summary", response_model=ScenarioSummary)
 def get_scenario_summary(
     scenario_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Obtém o resumo financeiro de um cenário
@@ -117,7 +120,8 @@ def get_scenario_summary(
 def compare_scenarios(
     base_id: int,
     compared_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Compara dois cenários orçamentários
@@ -196,7 +200,8 @@ def create_category(
 def list_categories(
     scenario_id: Optional[int] = Query(None),
     parent_category_id: Optional[int] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Lista categorias com filtros opcionais
@@ -229,7 +234,8 @@ def list_categories(
 @router.get("/categories/{category_id}", response_model=CategoryResponse)
 def get_category(
     category_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Obtém uma categoria específica

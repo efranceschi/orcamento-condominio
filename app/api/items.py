@@ -15,7 +15,7 @@ from app.schemas.budget import (
     BudgetValueUpdate,
     BudgetValueResponse
 )
-from app.services.auth_service import require_admin
+from app.services.auth_service import require_admin, get_current_user
 
 router = APIRouter(prefix="/api/items", tags=["items"])
 
@@ -37,7 +37,11 @@ def create_item(item_data: BudgetItemCreate, db: Session = Depends(get_db), curr
 
 
 @router.get("/{item_id}", response_model=BudgetItemResponse)
-def get_item(item_id: int, db: Session = Depends(get_db)):
+def get_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
     Obtém um item orçamentário específico
     """

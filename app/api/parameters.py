@@ -9,13 +9,16 @@ from app.database import get_db
 from app.models.parameters import SystemParameters
 from app.models.user import User
 from app.schemas.parameters import ParametersResponse, ParametersUpdate, ParametersCreate
-from app.services.auth_service import require_admin
+from app.services.auth_service import require_admin, get_current_user
 
 router = APIRouter(prefix="/api/parameters", tags=["parameters"])
 
 
 @router.get("", response_model=ParametersResponse)
-def get_parameters(db: Session = Depends(get_db)):
+def get_parameters(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
     Retorna os parâmetros do sistema (sempre retorna ou cria o registro único)
     """
