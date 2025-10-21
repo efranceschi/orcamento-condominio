@@ -3,16 +3,20 @@ Main FastAPI application
 Sistema de Gerenciamento Orçamentário para Condomínios
 """
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime
 import logging
 import time
+import traceback
+import sys
 
 from app.database import init_db, get_db
 from app.api import budget_router, analysis_router, parameters_router, auth_router, users_router
@@ -84,6 +88,64 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Exception handlers
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """
+    Handler para HTTPException - loga detalhes do erro
+    """
+    logger.warning(
+        f"❌ HTTP Exception: {exc.status_code} - {exc.detail}\n"
+        f"   Path: {request.method} {request.url.path}\n"
+        f"   Client: {request.client.host if request.client else 'unknown'}"
+    )
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Handler para erros de validação - loga detalhes
+    """
+    logger.error(
+        f"❌ Validation Error:\n"
+        f"   Path: {request.method} {request.url.path}\n"
+        f"   Errors: {exc.errors()}"
+    )
+    
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()}
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """
+    Handler para exceções não tratadas - loga stack trace completo
+    """
+    # Capturar stack trace completo
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+    tb_text = ''.join(tb_lines)
+    
+    logger.error(
+        f"💥 ERRO NÃO TRATADO:\n"
+        f"   Path: {request.method} {request.url.path}\n"
+        f"   Exception: {type(exc).__name__}: {str(exc)}\n"
+        f"   Stack Trace:\n{tb_text}"
+    )
+    
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Erro interno do servidor"}
+    )
+
+
 # Request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -92,26 +154,48 @@ async def log_requests(request: Request, call_next):
     """
     start_time = time.time()
     
-    # Log da requisição
-    logger.info(f"→ {request.method} {request.url.path}")
+    # Log da requisição com mais detalhes
+    auth_header = request.headers.get("authorization", "None")
+    has_token = "Bearer" in auth_header if auth_header != "None" else False
     
-    # Processar requisição
-    response = await call_next(request)
-    
-    # Calcular tempo de processamento
-    process_time = (time.time() - start_time) * 1000
-    
-    # Log da resposta
     logger.info(
-        f"← {request.method} {request.url.path} "
-        f"- Status: {response.status_code} "
-        f"- Tempo: {process_time:.2f}ms"
+        f"→ {request.method} {request.url.path} "
+        f"[Auth: {'Yes' if has_token else 'No'}]"
     )
     
-    # Adicionar header com tempo de processamento
-    response.headers["X-Process-Time"] = f"{process_time:.2f}ms"
-    
-    return response
+    try:
+        # Processar requisição
+        response = await call_next(request)
+        
+        # Calcular tempo de processamento
+        process_time = (time.time() - start_time) * 1000
+        
+        # Log da resposta (com cor baseada no status)
+        status_icon = "✓" if response.status_code < 400 else "✗"
+        log_level = logging.INFO if response.status_code < 400 else logging.WARNING
+        
+        logger.log(
+            log_level,
+            f"{status_icon} {request.method} {request.url.path} "
+            f"- Status: {response.status_code} "
+            f"- Tempo: {process_time:.2f}ms"
+        )
+        
+        # Adicionar header com tempo de processamento
+        response.headers["X-Process-Time"] = f"{process_time:.2f}ms"
+        
+        return response
+        
+    except Exception as exc:
+        # Log de exceção no middleware
+        process_time = (time.time() - start_time) * 1000
+        logger.error(
+            f"💥 Exception no middleware:\n"
+            f"   Path: {request.method} {request.url.path}\n"
+            f"   Tempo até erro: {process_time:.2f}ms\n"
+            f"   Exception: {type(exc).__name__}: {str(exc)}"
+        )
+        raise
 
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
