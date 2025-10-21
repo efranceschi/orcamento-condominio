@@ -8,6 +8,63 @@ function getAuthHeaders() {
     return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
+// Check if token is expired or will expire soon
+function isTokenExpired() {
+    const token = localStorage.getItem('access_token');
+    if (!token) return true;
+    
+    try {
+        // Decodificar payload do JWT
+        const parts = token.split('.');
+        if (parts.length !== 3) return true;
+        
+        const payload = JSON.parse(atob(parts[1]));
+        const exp = payload.exp * 1000; // Converter para milissegundos
+        const now = Date.now();
+        
+        // Retornar true se já expirou
+        return exp <= now;
+    } catch (e) {
+        console.error('Erro ao verificar expiração do token:', e);
+        return true;
+    }
+}
+
+// Check if token will expire soon (within 5 minutes)
+function isTokenExpiringSoon() {
+    const token = localStorage.getItem('access_token');
+    if (!token) return true;
+    
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return true;
+        
+        const payload = JSON.parse(atob(parts[1]));
+        const exp = payload.exp * 1000;
+        const now = Date.now();
+        const fiveMinutes = 5 * 60 * 1000;
+        
+        // Retornar true se expirar nos próximos 5 minutos
+        return (exp - now) <= fiveMinutes;
+    } catch (e) {
+        return true;
+    }
+}
+
+// Handle unauthorized responses (token expired)
+function handleUnauthorized(response) {
+    if (response.status === 401) {
+        // Token expirado - limpar e redirecionar
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+        // Mostrar mensagem antes de redirecionar
+        alert('Sua sessão expirou. Por favor, faça login novamente.');
+        window.location.href = '/login?expired=true';
+        return true;
+    }
+    return false;
+}
+
 function getCurrentUser() {
     return JSON.parse(localStorage.getItem('user') || '{}');
 }
@@ -287,6 +344,12 @@ class BudgetAPI {
         const response = await fetch(`${API_BASE_URL}/items/${itemId}`, {
             headers: getAuthHeaders()
         });
+        
+        // Verificar se token expirou
+        if (handleUnauthorized(response)) {
+            throw new Error('Sessão expirada. Redirecionando para login...');
+        }
+        
         if (!response.ok) throw new Error('Erro ao buscar item');
         return await response.json();
     }
@@ -313,6 +376,12 @@ class BudgetAPI {
             },
             body: JSON.stringify(data)
         });
+        
+        // Verificar se token expirou
+        if (handleUnauthorized(response)) {
+            throw new Error('Sessão expirada. Redirecionando para login...');
+        }
+        
         if (!response.ok) throw new Error('Erro ao atualizar item');
         return await response.json();
     }
@@ -613,4 +682,6 @@ window.formatCurrency = formatCurrency;
 window.formatPercent = formatPercent;
 window.showAlert = showAlert;
 window.showLoading = showLoading;
+window.isTokenExpired = isTokenExpired;
+window.isTokenExpiringSoon = isTokenExpiringSoon;
 
