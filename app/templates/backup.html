@@ -212,7 +212,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function loadStats() {
     try {
-        const response = await fetch('/api/backup/stats');
+        const response = await fetch('/api/backup/stats', {
+            headers: getAuthHeaders()
+        });
+        
+        if (!response.ok && handleUnauthorized(response)) {
+            return; // Redirecionamento já foi feito
+        }
+        
         const stats = await response.json();
 
         document.getElementById('stat-size').textContent = stats.file_size_mb + ' MB';
@@ -270,8 +277,15 @@ async function importDatabase() {
         const url = `/api/backup/import?create_backup=${createBackup}`;
         const response = await fetch(url, {
             method: 'POST',
+            headers: getAuthHeaders(),
             body: formData
         });
+        
+        if (!response.ok && handleUnauthorized(response)) {
+            importBtn.disabled = false;
+            importBtn.textContent = 'Importar Banco';
+            return; // Redirecionamento já foi feito
+        }
 
         const result = await response.json();
 
@@ -298,7 +312,14 @@ async function loadBackups() {
     document.getElementById('backups-content').style.display = 'none';
 
     try {
-        const response = await fetch('/api/backup/list');
+        const response = await fetch('/api/backup/list', {
+            headers: getAuthHeaders()
+        });
+        
+        if (!response.ok && handleUnauthorized(response)) {
+            return; // Redirecionamento já foi feito
+        }
+        
         const data = await response.json();
 
         const backupsList = document.getElementById('backups-list');

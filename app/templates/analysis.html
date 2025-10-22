@@ -63,8 +63,15 @@ function formatCurrency(value) {
 // API Client
 const ParametersAPI = {
     async getParameters() {
-        const response = await fetch('/api/parameters');
-        if (!response.ok) throw new Error('Erro ao carregar parâmetros');
+        const response = await fetch('/api/parameters', {
+            headers: getAuthHeaders()
+        });
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao carregar parâmetros');
+        }
         return await response.json();
     }
 };

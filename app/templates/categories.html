@@ -334,12 +334,17 @@ async function loadCategories() {
     
     try {
         // Inicializar categorias raiz (RECEITAS e DESPESAS)
-        await fetch(`/api/budgets/scenarios/${currentScenarioId}/initialize-categories`, {
-            method: 'POST'
+        const initResponse = await fetch(`/api/budgets/scenarios/${currentScenarioId}/initialize-categories`, {
+            method: 'POST',
+            headers: getAuthHeaders()
         });
         
+        if (!initResponse.ok && handleUnauthorized(initResponse)) {
+            return; // Redirecionamento já foi feito
+        }
+        
         // Carregar todas as categorias
-        allCategories = await API.getCategories(currentScenarioId);
+        allCategories = await BudgetAPI.getCategories(currentScenarioId);
         renderCategories();
     } catch (error) {
         console.error('Erro ao carregar categorias:', error);

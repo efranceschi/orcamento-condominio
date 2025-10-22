@@ -17,11 +17,29 @@ import logging
 import time
 import traceback
 import sys
+import os
 
 from app.database import init_db, get_db
 from app.api import budget_router, analysis_router, parameters_router, auth_router, users_router
 from app.api.items import router as items_router
 from app.api.backup import router as backup_router
+
+# Detectar modo debug e access log
+DEBUG_MODE = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
+ACCESS_LOG_MODE = os.getenv("ACCESS_LOG", "false").lower() in ("true", "1", "yes")
+
+# Print direto para stdout para garantir que aparece
+if DEBUG_MODE or ACCESS_LOG_MODE:
+    print(f"\n{'='*80}")
+    print(f"🔧 Configuração de Logging")
+    print(f"{'='*80}")
+    if DEBUG_MODE:
+        print(f"Modo: DEBUG (logs verbosos)")
+    elif ACCESS_LOG_MODE:
+        print(f"Modo: ACCESS LOG (logs de acesso simplificados)")
+    else:
+        print(f"Modo: NORMAL")
+    print(f"{'='*80}\n")
 
 
 @asynccontextmanager
@@ -73,11 +91,40 @@ app = FastAPI(
 )
 
 # Configure logging
+log_level = logging.DEBUG if DEBUG_MODE else logging.INFO
+
+# Remover handlers existentes para evitar duplicação
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+
+# Configurar logging básico
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=log_level,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True,
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
 )
+
 logger = logging.getLogger(__name__)
+logger.setLevel(log_level)
+
+# Configurar nível de log para uvicorn também
+logging.getLogger("uvicorn").setLevel(log_level)
+logging.getLogger("uvicorn.access").setLevel(log_level)
+logging.getLogger("uvicorn.error").setLevel(log_level)
+
+# Log do modo de operação
+if DEBUG_MODE:
+    print("🐛 MODO DEBUG ATIVADO - Logs detalhados habilitados\n")
+    logger.debug("🐛 Logger configurado em modo DEBUG")
+elif ACCESS_LOG_MODE:
+    print("📝 MODO ACCESS LOG ATIVADO - Logs de acesso simplificados\n")
+    logger.info("📝 Logger configurado para access log")
+else:
+    print("✓ Aplicação iniciada em modo normal\n")
+    logger.info("✓ Logger configurado em modo INFO")
 
 # Configure CORS
 app.add_middleware(
@@ -158,10 +205,35 @@ async def log_requests(request: Request, call_next):
     auth_header = request.headers.get("authorization", "None")
     has_token = "Bearer" in auth_header if auth_header != "None" else False
     
-    logger.info(
-        f"→ {request.method} {request.url.path} "
-        f"[Auth: {'Yes' if has_token else 'No'}]"
-    )
+    # Em modo debug, mostrar informações detalhadas da requisição
+    if DEBUG_MODE:
+        # Montar URL completa com query params
+        full_url = str(request.url)
+        query_params = dict(request.query_params) if request.query_params else {}
+        client_info = f"{request.client.host}:{request.client.port}" if request.client else "unknown"
+        user_agent = request.headers.get("user-agent", "unknown")
+        
+        log_msg = (
+            f"\n{'='*80}\n"
+            f"📥 REQUISIÇÃO RECEBIDA\n"
+            f"   Método: {request.method}\n"
+            f"   URL: {full_url}\n"
+            f"   Path: {request.url.path}\n"
+            f"   Query Params: {query_params or 'Nenhum'}\n"
+            f"   Cliente: {client_info}\n"
+            f"   User-Agent: {user_agent}\n"
+            f"   Autenticado: {'Sim' if has_token else 'Não'}\n"
+            f"{'='*80}"
+        )
+        
+        # Usar tanto logger quanto print para garantir que aparece
+        logger.debug(log_msg)
+        print(log_msg, flush=True)
+    elif ACCESS_LOG_MODE:
+        # Modo access log: logs simples e limpos
+        log_msg = f"→ {request.method} {request.url.path} [Auth: {'Yes' if has_token else 'No'}]"
+        logger.info(log_msg)
+        print(log_msg, flush=True)
     
     try:
         # Processar requisição
@@ -174,12 +246,42 @@ async def log_requests(request: Request, call_next):
         status_icon = "✓" if response.status_code < 400 else "✗"
         log_level = logging.INFO if response.status_code < 400 else logging.WARNING
         
-        logger.log(
-            log_level,
-            f"{status_icon} {request.method} {request.url.path} "
-            f"- Status: {response.status_code} "
-            f"- Tempo: {process_time:.2f}ms"
-        )
+        # Log da resposta baseado no modo
+        if DEBUG_MODE:
+            # Modo debug: informações detalhadas da resposta
+            status_desc = ""
+            if response.status_code < 300:
+                status_desc = "Sucesso"
+            elif response.status_code < 400:
+                status_desc = "Redirecionamento"
+            elif response.status_code < 500:
+                status_desc = "Erro do Cliente"
+            else:
+                status_desc = "Erro do Servidor"
+            
+            log_msg = (
+                f"\n{'='*80}\n"
+                f"📤 RESPOSTA ENVIADA\n"
+                f"   Método: {request.method}\n"
+                f"   URL: {request.url.path}\n"
+                f"   Status HTTP: {response.status_code} ({status_desc})\n"
+                f"   Tempo de Processamento: {process_time:.2f}ms\n"
+                f"   {status_icon} {'Requisição bem-sucedida' if response.status_code < 400 else 'Requisição com erro'}\n"
+                f"{'='*80}\n"
+            )
+            
+            # Usar tanto logger quanto print para garantir que aparece
+            logger.debug(log_msg)
+            print(log_msg, flush=True)
+        elif ACCESS_LOG_MODE:
+            # Modo access log: logs simples e limpos
+            log_msg = (
+                f"{status_icon} {request.method} {request.url.path} "
+                f"- Status: {response.status_code} "
+                f"- Tempo: {process_time:.2f}ms"
+            )
+            logger.log(log_level, log_msg)
+            print(log_msg, flush=True)
         
         # Adicionar header com tempo de processamento
         response.headers["X-Process-Time"] = f"{process_time:.2f}ms"
@@ -367,5 +469,16 @@ async def backup_page(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    
+    # Configurar nível de log do uvicorn baseado no modo debug
+    uvicorn_log_level = "debug" if DEBUG_MODE else "info"
+    
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level=uvicorn_log_level,
+        access_log=True  # Garantir que access log está habilitado
+    )
 

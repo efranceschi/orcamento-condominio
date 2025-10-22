@@ -113,18 +113,33 @@
 // API Client
 const ParametersAPI = {
     async getParameters() {
-        const response = await fetch('/api/parameters');
-        if (!response.ok) throw new Error('Erro ao carregar parâmetros');
+        const response = await fetch('/api/parameters', {
+            headers: getAuthHeaders()
+        });
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao carregar parâmetros');
+        }
         return await response.json();
     },
     
     async updateParameters(data) {
         const response = await fetch('/api/parameters', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify(data)
         });
-        if (!response.ok) throw new Error('Erro ao atualizar parâmetros');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao atualizar parâmetros');
+        }
         return await response.json();
     }
 };

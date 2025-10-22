@@ -143,6 +143,11 @@ class BudgetAPI {
             headers: getAuthHeaders()
         });
         if (!response.ok) {
+            // Verificar se token expirou
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            
             // Se o banco estiver vazio, retornar array vazio ao invés de erro
             if (response.status === 404 || response.status === 500) {
                 console.warn('Banco de dados vazio ou não inicializado');
@@ -161,7 +166,12 @@ class BudgetAPI {
                 ...getAuthHeaders()
             }
         });
-        if (!response.ok) throw new Error('Erro ao buscar cenário');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao buscar cenário');
+        }
         return await response.json();
     }
     
@@ -174,7 +184,12 @@ class BudgetAPI {
             },
             body: JSON.stringify(data)
         });
-        if (!response.ok) throw new Error('Erro ao criar cenário');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao criar cenário');
+        }
         return await response.json();
     }
     
@@ -187,7 +202,12 @@ class BudgetAPI {
             },
             body: JSON.stringify(data)
         });
-        if (!response.ok) throw new Error('Erro ao atualizar cenário');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao atualizar cenário');
+        }
         return await response.json();
     }
     
@@ -196,14 +216,24 @@ class BudgetAPI {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
-        if (!response.ok) throw new Error('Erro ao deletar cenário');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao deletar cenário');
+        }
     }
     
     static async getScenarioSummary(scenarioId) {
         const response = await fetch(`${API_BASE_URL}/budgets/scenarios/${scenarioId}/summary`, {
             headers: getAuthHeaders()
         });
-        if (!response.ok) throw new Error('Erro ao buscar resumo do cenário');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao buscar resumo do cenário');
+        }
         return await response.json();
     }
     
@@ -212,7 +242,12 @@ class BudgetAPI {
             `${API_BASE_URL}/budgets/scenarios/compare/${baseId}/${comparedId}`,
             { headers: getAuthHeaders() }
         );
-        if (!response.ok) throw new Error('Erro ao comparar cenários');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao comparar cenários');
+        }
         return await response.json();
     }
     
@@ -274,6 +309,11 @@ class BudgetAPI {
             }
         });
         if (!response.ok) {
+            // Verificar se token expirou
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            
             // Se o banco estiver vazio, retornar array vazio
             if (response.status === 404 || response.status === 500) {
                 console.warn('Nenhuma categoria encontrada ou banco não inicializado');
@@ -289,7 +329,12 @@ class BudgetAPI {
         const response = await fetch(`${API_BASE_URL}/budgets/categories/${categoryId}`, {
             headers: getAuthHeaders()
         });
-        if (!response.ok) throw new Error('Erro ao buscar categoria');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao buscar categoria');
+        }
         return await response.json();
     }
     
@@ -302,7 +347,12 @@ class BudgetAPI {
             },
             body: JSON.stringify(data)
         });
-        if (!response.ok) throw new Error('Erro ao criar categoria');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao criar categoria');
+        }
         return await response.json();
     }
     
@@ -321,6 +371,9 @@ class BudgetAPI {
         console.log(`[API] Response status:`, response.status);
         
         if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
             const errorText = await response.text();
             console.error(`[API] Error response:`, errorText);
             throw new Error('Erro ao atualizar categoria');
@@ -336,7 +389,12 @@ class BudgetAPI {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
-        if (!response.ok) throw new Error('Erro ao deletar categoria');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao deletar categoria');
+        }
     }
     
     // Items
@@ -363,7 +421,12 @@ class BudgetAPI {
             },
             body: JSON.stringify(data)
         });
-        if (!response.ok) throw new Error('Erro ao criar item');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao criar item');
+        }
         return await response.json();
     }
     
@@ -391,7 +454,12 @@ class BudgetAPI {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
-        if (!response.ok) throw new Error('Erro ao deletar item');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao deletar item');
+        }
     }
     
     static async createItemValue(data) {
@@ -403,7 +471,12 @@ class BudgetAPI {
             },
             body: JSON.stringify(data)
         });
-        if (!response.ok) throw new Error('Erro ao criar valor do item');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao criar valor do item');
+        }
         return await response.json();
     }
     
@@ -416,7 +489,12 @@ class BudgetAPI {
             },
             body: JSON.stringify(data)
         });
-        if (!response.ok) throw new Error('Erro ao atualizar valor do item');
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                throw new Error('Sessão expirada. Redirecionando para login...');
+            }
+            throw new Error('Erro ao atualizar valor do item');
+        }
         return await response.json();
     }
 }
