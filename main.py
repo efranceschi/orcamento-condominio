@@ -18,6 +18,7 @@ import time
 import traceback
 import sys
 import os
+from pathlib import Path
 
 from app.database import init_db, get_db
 from app.api import budget_router, analysis_router, parameters_router, auth_router, users_router
@@ -27,6 +28,24 @@ from app.api.backup import router as backup_router
 # Detectar modo debug e access log
 DEBUG_MODE = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 ACCESS_LOG_MODE = os.getenv("ACCESS_LOG", "false").lower() in ("true", "1", "yes")
+
+# Ler versão da aplicação
+def get_app_version():
+    """Obtém a versão da aplicação"""
+    # Tentar ler de variável de ambiente primeiro (Docker)
+    version = os.getenv("APP_VERSION")
+    if version:
+        return version
+    
+    # Tentar ler do arquivo VERSION
+    version_file = Path(__file__).parent / "VERSION"
+    if version_file.exists():
+        return version_file.read_text().strip()
+    
+    # Fallback para versão de desenvolvimento
+    return "dev"
+
+APP_VERSION = get_app_version()
 
 # Print direto para stdout para garantir que aparece
 if DEBUG_MODE or ACCESS_LOG_MODE:
@@ -84,7 +103,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Sistema de Gerenciamento Orçamentário",
     description="Sistema completo para gestão e análise de orçamentos condominiais",
-    version="1.0.0",
+    version=APP_VERSION.lstrip('v'),  # Remove 'v' do início se existir
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     lifespan=lifespan
@@ -302,6 +321,9 @@ async def log_requests(request: Request, call_next):
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
+
+# Adicionar versão ao contexto global dos templates
+templates.env.globals['APP_VERSION'] = APP_VERSION
 
 # Include API routers
 app.include_router(auth_router)

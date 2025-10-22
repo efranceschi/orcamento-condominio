@@ -1,16 +1,21 @@
 # Dockerfile simplificado seguindo melhores práticas
 FROM python:3.13-slim
 
+# Build argument para versão
+ARG APP_VERSION=dev
+
 # Metadados
 LABEL maintainer="Eduardo Franceschi"
 LABEL description="Sistema de Orçamento - FastAPI + Nginx"
+LABEL version="${APP_VERSION}"
 
 # Variáveis de ambiente
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    APP_VERSION=${APP_VERSION}
 
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -31,6 +36,9 @@ COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY main.py .
 COPY alembic.ini .
+
+# Criar arquivo de versão
+RUN echo "${APP_VERSION}" > /app/VERSION
 
 # Copiar arquivos de configuração
 COPY docker/nginx.conf /etc/nginx/nginx.conf

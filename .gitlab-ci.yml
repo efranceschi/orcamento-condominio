@@ -32,10 +32,6 @@ test:syntax-check:
   cache:
     paths:
       - .cache/pip
-  only:
-    - branches
-  except:
-    - tags
 
 test:unit-tests:
   stage: test
@@ -72,12 +68,8 @@ test:unit-tests:
   cache:
     paths:
       - .cache/pip
-  only:
-    - branches
-  except:
-    - tags
 
-# Build stage - create Docker image
+# Build stage - create Docker image (only on version tags)
 build:
   stage: build
   image: docker:stable
@@ -90,34 +82,41 @@ build:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD https://$CI_REGISTRY
     - docker info
   script:
-    - echo "🔨 Building Docker image..."
+    - echo "🔨 Building Docker image for version $CI_COMMIT_TAG..."
     - |
+      # Extract version from tag (removes 'v' prefix)
+      VERSION=${CI_COMMIT_TAG#v}
+      
       # Generate image tags
-      IMAGE_TAG_COMMIT="$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA"
-      IMAGE_TAG_BRANCH="$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$IMAGE_NAME:$CI_COMMIT_REF_SLUG"
+      IMAGE_TAG_VERSION="$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$IMAGE_NAME:$VERSION"
+      IMAGE_TAG_TAG="$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$IMAGE_NAME:$CI_COMMIT_TAG"
       IMAGE_TAG_LATEST="$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$IMAGE_NAME:latest"
       
+      echo "Building version: $VERSION"
       echo "Building with tags:"
-      echo "  - $IMAGE_TAG_COMMIT"
-      echo "  - $IMAGE_TAG_BRANCH"
+      echo "  - $IMAGE_TAG_VERSION"
+      echo "  - $IMAGE_TAG_TAG"
       echo "  - $IMAGE_TAG_LATEST"
       
-      # Build image
-      docker build -t $IMAGE_TAG_COMMIT -t $IMAGE_TAG_BRANCH -t $IMAGE_TAG_LATEST .
+      # Build image with version as build arg
+      docker build \
+        --build-arg APP_VERSION=$CI_COMMIT_TAG \
+        -t $IMAGE_TAG_VERSION \
+        -t $IMAGE_TAG_TAG \
+        -t $IMAGE_TAG_LATEST .
       
       # Push all tags
       echo "📤 Pushing images to registry..."
-      docker push $IMAGE_TAG_COMMIT
-      docker push $IMAGE_TAG_BRANCH
+      docker push $IMAGE_TAG_VERSION
+      docker push $IMAGE_TAG_TAG
       docker push $IMAGE_TAG_LATEST
       
       echo "✅ Images pushed successfully!"
+      echo "✅ Version $CI_COMMIT_TAG deployed"
   after_script:
     - docker logout $DOCKER_REGISTRY
   only:
-    - branches
-  except:
-    - tags
+    - /^v\d+\.\d+\.\d+.*$/  # Apenas tags que começam com v seguido de versão semântica
 
 # Cache configuration
 cache:
