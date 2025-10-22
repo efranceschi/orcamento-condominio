@@ -10,8 +10,8 @@ stages:
   - build
   - deploy
 
-# Test stage - validate Python code and configurations
-test:
+# Test stage - validate Python code and run test suite
+test:syntax-check:
   stage: test
   image: python:3.13-slim
   tags:
@@ -21,7 +21,7 @@ test:
     - pip install --upgrade pip
     - pip install -r requirements.txt
   script:
-    - echo "🧪 Testing Python application..."
+    - echo "🧪 Validating Python syntax..."
     - python -m py_compile main.py
     - echo "✅ Python syntax is valid"
     - echo "🔍 Checking required files..."
@@ -29,6 +29,46 @@ test:
     - test -f docker/supervisord.conf && echo "✅ Supervisor config found"
     - test -f requirements.txt && echo "✅ Requirements file found"
     - echo "✅ All required files are present"
+  cache:
+    paths:
+      - .cache/pip
+  only:
+    - branches
+  except:
+    - tags
+
+test:unit-tests:
+  stage: test
+  image: python:3.13-slim
+  tags:
+    - docker
+    - dev
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq sqlite3
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - echo "🧪 Running test suite..."
+    - pytest -v --tb=short --junitxml=report.xml --cov=app --cov-report=xml --cov-report=html --cov-report=term
+    - echo "✅ All tests passed!"
+    - echo ""
+    - echo "📊 Test Coverage Summary:"
+    - coverage report --skip-empty
+  after_script:
+    - echo "📈 Test execution completed"
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    when: always
+    paths:
+      - htmlcov/
+      - report.xml
+      - coverage.xml
+    reports:
+      junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    expire_in: 30 days
   cache:
     paths:
       - .cache/pip
