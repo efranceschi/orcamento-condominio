@@ -1,13 +1,14 @@
 use axum::{
     extract::{Path, Query, State as AxumState},
-    http::StatusCode,
-    response::{IntoResponse, Json},
+    http::{StatusCode, Uri, header},
+    response::{IntoResponse, Json, Response},
     routing::{delete, get, post, put},
     Router,
 };
 use tower_http::cors::CorsLayer;
 use std::sync::Arc;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use tokio::sync::oneshot;
 
 use crate::db::Database;
@@ -16,6 +17,7 @@ use crate::models::*;
 /// Estado compartilhado do servidor HTTP
 pub struct ServerState {
     pub db: Arc<Database>,
+    pub dist_dir: Option<PathBuf>,
 }
 
 /// Handle para controlar o servidor (parar quando necessário)
@@ -32,8 +34,8 @@ impl ServerHandle {
 }
 
 /// Inicia o servidor HTTP em background
-pub async fn start_server(db: Arc<Database>, port: u16) -> Result<ServerHandle, String> {
-    let state = Arc::new(ServerState { db });
+pub async fn start_server(db: Arc<Database>, port: u16, dist_dir: Option<PathBuf>) -> Result<ServerHandle, String> {
+    let state = Arc::new(ServerState { db, dist_dir });
 
     let cors = CorsLayer::permissive();
 
@@ -761,13 +763,55 @@ async fn get_stats_handler(
 }
 
 // ============================================================
-// SPA Fallback — serve index.html para rotas do React Router
+// SPA Fallback — serve arquivos estáticos e index.html
 // ============================================================
 
-async fn spa_fallback() -> impl IntoResponse {
-    // Em produção, serviríamos os arquivos estáticos do dist/
-    // Em dev, o Vite serve tudo, então este fallback retorna um redirect
+async fn spa_fallback(
+    AxumState(state): AxumState<Arc<ServerState>>,
+    uri: Uri,
+) -> Response {
+    let path = uri.path().trim_start_matches('/');
+
+    // Tentar servir arquivo estático do dist/
+    if let Some(ref dist_dir) = state.dist_dir {
+        let file_path = dist_dir.join(path);
+        if file_path.is_file() {
+            if let Ok(contents) = tokio::fs::read(&file_path).await {
+                let mime = guess_mime(path);
+                return (
+                    StatusCode::OK,
+                    [(header::CONTENT_TYPE, mime)],
+                    contents,
+                ).into_response();
+            }
+        }
+
+        // SPA fallback: servir index.html para qualquer rota não-encontrada
+        let index_path = dist_dir.join("index.html");
+        if let Ok(contents) = tokio::fs::read(&index_path).await {
+            return (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+                contents,
+            ).into_response();
+        }
+    }
+
+    // Se não tem dist/ (modo dev), redirecionar para o Vite dev server
     axum::response::Html(
-        r#"<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=/"></head><body></body></html>"#
+        r#"<!DOCTYPE html><html><head><meta charset="utf-8"><title>Calculadora Orçamentária</title></head><body><p>Servidor de rede ativo. Em modo desenvolvimento, acesse pelo Vite dev server.</p></body></html>"#
     ).into_response()
+}
+
+fn guess_mime(path: &str) -> &'static str {
+    if path.ends_with(".html") { "text/html; charset=utf-8" }
+    else if path.ends_with(".js") { "application/javascript; charset=utf-8" }
+    else if path.ends_with(".css") { "text/css; charset=utf-8" }
+    else if path.ends_with(".json") { "application/json" }
+    else if path.ends_with(".svg") { "image/svg+xml" }
+    else if path.ends_with(".png") { "image/png" }
+    else if path.ends_with(".ico") { "image/x-icon" }
+    else if path.ends_with(".woff2") { "font/woff2" }
+    else if path.ends_with(".woff") { "font/woff" }
+    else { "application/octet-stream" }
 }

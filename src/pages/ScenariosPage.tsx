@@ -10,6 +10,7 @@ import {
   Pencil,
   Trash2,
   FileText,
+  FlaskConical,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
@@ -77,6 +78,49 @@ export default function ScenariosPage() {
   const [formIsBaseline, setFormIsBaseline] = useState(false);
   const [formCopyPrevious, setFormCopyPrevious] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Simulation dialog state
+  const [simDialogOpen, setSimDialogOpen] = useState(false);
+  const [simBaseScenario, setSimBaseScenario] = useState<BudgetScenario | null>(
+    null,
+  );
+  const [simName, setSimName] = useState("");
+  const [simGeneralAdjustment, setSimGeneralAdjustment] = useState(0);
+  const [simRiskMargin, setSimRiskMargin] = useState(0);
+  const [simSaving, setSimSaving] = useState(false);
+
+  const openSimDialog = (scenario: BudgetScenario) => {
+    setSimBaseScenario(scenario);
+    setSimName("");
+    setSimGeneralAdjustment(0);
+    setSimRiskMargin(0);
+    setSimDialogOpen(true);
+  };
+
+  const handleCreateSimulation = async () => {
+    if (!simName.trim() || !simBaseScenario) return;
+    setSimSaving(true);
+    try {
+      const newScenario = await createScenario({
+        name: simName,
+        year: simBaseScenario.year,
+        description: "Simulação baseada em " + simBaseScenario.name,
+        is_baseline: false,
+        base_scenario_id: simBaseScenario.id,
+        copy_from_previous: false,
+      });
+      await updateScenario(newScenario.id!, {
+        general_adjustment: simGeneralAdjustment,
+        risk_margin: simRiskMargin,
+      });
+      setSimDialogOpen(false);
+      navigate(`/scenarios/${newScenario.id}/edit`);
+    } catch (err) {
+      alert(`Erro ao criar simulação: ${err}`);
+    } finally {
+      setSimSaving(false);
+    }
+  };
 
   const loadScenarios = useCallback(async () => {
     try {
@@ -366,6 +410,14 @@ export default function ScenariosPage() {
                   PDF
                 </Button>
                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openSimDialog(scenario)}
+                >
+                  <FlaskConical className="h-3.5 w-3.5" />
+                  Simular
+                </Button>
+                <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => openEditDialog(scenario)}
@@ -470,6 +522,81 @@ export default function ScenariosPage() {
             </Button>
             <Button onClick={handleSave} disabled={saving || !formName.trim()}>
               {saving ? "Salvando..." : editingScenario ? "Salvar" : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Simulation Dialog */}
+      <Dialog open={simDialogOpen} onClose={() => setSimDialogOpen(false)}>
+        <DialogContent>
+          <DialogHeader onClose={() => setSimDialogOpen(false)}>
+            <DialogTitle>Nova Simulação</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Nome da simulação *
+              </label>
+              <Input
+                value={simName}
+                onChange={(e) => setSimName(e.target.value)}
+                placeholder="Ex: Simulação otimista 2026"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Cenário base
+              </label>
+              <Input
+                value={simBaseScenario?.name ?? ""}
+                readOnly
+                disabled
+                className="bg-gray-50"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Ajuste geral (%)
+              </label>
+              <Input
+                type="number"
+                value={simGeneralAdjustment}
+                onChange={(e) =>
+                  setSimGeneralAdjustment(Number(e.target.value))
+                }
+                step="0.01"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Margem de risco (%)
+              </label>
+              <Input
+                type="number"
+                value={simRiskMargin}
+                onChange={(e) => setSimRiskMargin(Number(e.target.value))}
+                step="0.01"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSimDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreateSimulation}
+              disabled={simSaving || !simName.trim()}
+            >
+              {simSaving ? "Criando..." : "Criar Simulação"}
             </Button>
           </DialogFooter>
         </DialogContent>

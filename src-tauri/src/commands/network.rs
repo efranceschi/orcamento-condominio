@@ -93,8 +93,23 @@ pub async fn start_network_server(
         conn: std::sync::Mutex::new(conn),
     });
 
+    // Detectar diretório dist/ para servir arquivos estáticos
+    let dist_dir = {
+        let exe_dir = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+        // Tentar encontrar dist/ relativo ao executável ou ao diretório do banco
+        let candidates = [
+            exe_dir.as_ref().map(|d| d.join("../dist")),
+            exe_dir.as_ref().map(|d| d.join("dist")),
+            Some(std::path::PathBuf::from("dist")),
+            Some(std::path::PathBuf::from("../dist")),
+        ];
+        candidates.into_iter().flatten().find(|p| p.join("index.html").is_file())
+    };
+
     // Agora podemos chamar .await sem segurar referências a State
-    let handle = server::start_server(db_arc, actual_port).await?;
+    let handle = server::start_server(db_arc, actual_port, dist_dir).await?;
 
     // Atualizar estado
     *network.handle.lock().map_err(|e| e.to_string())? = Some(handle);

@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { FileText, FolderTree, Settings, Download, Wifi, WifiOff, Copy } from "lucide-react";
+import { FileText, FolderTree, Settings, Download, ArrowLeftRight, Wifi, WifiOff, Copy } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import {
@@ -14,6 +14,7 @@ const navItems = [
   { to: "/categories", icon: FolderTree, label: "Categorias" },
   { to: "/parameters", icon: Settings, label: "Parâmetros" },
   { to: "/backup", icon: Download, label: "Backup" },
+  { to: "/comparison", icon: ArrowLeftRight, label: "Comparação" },
 ];
 
 /** Detecta se estamos dentro do Tauri WebView */

@@ -9,6 +9,7 @@ import EditBudgetPage from "./pages/EditBudgetPage";
 import CategoriesPage from "./pages/CategoriesPage";
 import ParametersPage from "./pages/ParametersPage";
 import BackupPage from "./pages/BackupPage";
+import ComparisonPage from "./pages/ComparisonPage";
 import { registerDbPath } from "./lib/api";
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/parameters" element={<ParametersPage />} />
             <Route path="/backup" element={<BackupPage />} />
+            <Route path="/comparison" element={<ComparisonPage />} />
           </Routes>
         </main>
       </div>

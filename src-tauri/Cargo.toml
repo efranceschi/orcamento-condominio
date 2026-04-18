@@ -22,6 +22,7 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 thiserror = "1"
+printpdf = "0.7"
 # Servidor HTTP para acesso via rede
 axum = "0.7"
 tower-http = { version = "0.5", features = ["cors", "fs"] }
