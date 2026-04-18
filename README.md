@@ -26,17 +26,50 @@ Funciona 100% offline, com banco de dados local. Opcionalmente, permite que outr
   - **Linux:** `sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev`
   - **Windows:** [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) + [WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)
 
-## Desenvolvimento
+## Início Rápido
 
 ```bash
-# Instalar dependências
+# 1. Instalar dependências
 npm install
 
-# Iniciar em modo desenvolvimento (hot-reload)
+# 2. Popular o banco com dados iniciais (Proposta Orçamentária 2026)
+./seed.sh
+
+# 3. Iniciar o app
 ./run.sh
 ```
 
-O app abre uma janela nativa. O frontend também fica disponível em `http://localhost:1420` durante o desenvolvimento.
+O app abre uma janela nativa. O banco de dados é criado automaticamente no primeiro uso.
+
+## Dados Iniciais
+
+O script `seed.sh` popula o banco com a Proposta Orçamentária 2026 do condomínio, incluindo:
+
+- 1 cenário base com ajuste geral de 7,5% e margem de risco de 2%
+- 10 categorias de despesas (pessoal, administrativo, terceiros, manutenção, segurança, veículos, eventos, investimentos, impostos, financeiras)
+- 2 categorias de receitas (taxa de manutenção, receitas financeiras)
+- 65 itens com valores orçados, realizados e propostos
+- Parâmetros do condomínio (150.000 m², lotes de 250/450/800 m², desconto habite-se 10%)
+
+```bash
+# Popular com dados iniciais
+./seed.sh
+
+# Ou especificar um banco diferente
+./seed.sh /caminho/para/orcamento.db
+```
+
+## Desenvolvimento
+
+```bash
+# Iniciar em modo desenvolvimento (hot-reload)
+./run.sh
+
+# Iniciar em modo release (mais rápido)
+./run.sh --release
+```
+
+O frontend também fica disponível em `http://localhost:1420` durante o desenvolvimento.
 
 ## Build de Produção
 
@@ -83,5 +116,7 @@ Os artefatos são gerados em `src-tauri/target/release/bundle/`.
 │   └── src/server.rs       # Servidor HTTP para acesso via rede
 ├── run.sh                  # Script de desenvolvimento
 ├── build.sh                # Script de build de produção
+├── seed.sh                 # Popular banco com dados iniciais
+├── scripts/seed_data.py    # Dados da Proposta Orçamentária 2026
 └── PRD.md                  # Documento de requisitos completo
 ```
