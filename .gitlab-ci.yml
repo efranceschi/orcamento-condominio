@@ -33,9 +33,10 @@ test:typescript:
     npm_config_audit: "false"
     npm_config_loglevel: "error"
   before_script:
-    - node --version && npm --version
-    - npm cache clean --force || true
-    - npm install --legacy-peer-deps || { echo "ERROR: npm install failed"; exit 1; }
+    - node --version
+    - npm --version
+    - npm cache clean --force
+    - npm install --legacy-peer-deps
   script:
     - ./node_modules/.bin/tsc --noEmit
     - echo "--- TypeScript check passed ---"
@@ -49,14 +50,8 @@ test:rust:
   image: rust:1.82-bookworm
   before_script:
     - rustup default stable
-    - apt-get update -qq && apt-get install -y -qq
-      pkg-config
-      libssl-dev
-      libwebkit2gtk-4.1-dev
-      libayatana-appindicator3-dev
-      librsvg2-dev
-      libsoup-3.0-dev
-      libjavascriptcoregtk-4.1-dev
+    - apt-get update -qq
+    - apt-get install -y -qq pkg-config libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
   script:
     - cd src-tauri
     - cargo check --release
