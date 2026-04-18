@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
 import { Sidebar } from "./components/layout/Sidebar";
 import ScenariosPage from "./pages/ScenariosPage";
 import ScenarioDetailsPage from "./pages/ScenarioDetailsPage";
@@ -8,8 +9,16 @@ import EditBudgetPage from "./pages/EditBudgetPage";
 import CategoriesPage from "./pages/CategoriesPage";
 import ParametersPage from "./pages/ParametersPage";
 import BackupPage from "./pages/BackupPage";
+import { registerDbPath } from "./lib/api";
 
 export default function App() {
+  useEffect(() => {
+    // Registrar o caminho do banco para o servidor de rede
+    registerDbPath().catch(() => {
+      // Silencioso — não está no Tauri ou já registrado
+    });
+  }, []);
+
   return (
     <BrowserRouter>
       <div className="flex h-screen overflow-hidden">

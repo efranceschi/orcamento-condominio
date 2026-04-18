@@ -18,16 +18,165 @@ import type {
   DbStats,
 } from "../types";
 
-// Wrapper para invoke que detecta se está no contexto Tauri
-async function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-  try {
+// ============================================================
+// Transporte dual: Tauri IPC ou HTTP REST
+// ============================================================
+
+/** Detecta se estamos dentro do WebView nativo do Tauri */
+function isTauri(): boolean {
+  return "__TAURI_INTERNALS__" in window;
+}
+
+/** Obtém a base URL do servidor HTTP (mesmo host, porta 3000 por padrão) */
+function getApiBaseUrl(): string {
+  // Se acessando via browser na rede, a URL já aponta para o servidor HTTP
+  return `${window.location.protocol}//${window.location.host}`;
+}
+
+/** Wrapper unificado: usa Tauri IPC se disponível, senão HTTP REST */
+async function invoke<T>(
+  command: string,
+  args?: Record<string, unknown>,
+): Promise<T> {
+  if (isTauri()) {
     const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
     return tauriInvoke<T>(command, args);
-  } catch {
+  }
+  // Modo HTTP — mapear command para endpoint REST
+  return httpInvoke<T>(command, args);
+}
+
+/** Mapeamento de Tauri commands para endpoints HTTP REST */
+async function httpInvoke<T>(
+  command: string,
+  args?: Record<string, unknown>,
+): Promise<T> {
+  const base = getApiBaseUrl();
+
+  const routeMap: Record<
+    string,
+    { method: string; path: string | ((a: Record<string, unknown>) => string) }
+  > = {
+    // Cenários
+    list_scenarios: {
+      method: "GET",
+      path: (a) => {
+        const params = new URLSearchParams();
+        if (a.year != null) params.set("year", String(a.year));
+        if (a.isBaseline != null)
+          params.set("is_baseline", String(a.isBaseline));
+        const qs = params.toString();
+        return `/api/scenarios${qs ? `?${qs}` : ""}`;
+      },
+    },
+    get_scenario: {
+      method: "GET",
+      path: (a) => `/api/scenarios/${a.id}`,
+    },
+    create_scenario: { method: "POST", path: "/api/scenarios" },
+    update_scenario: {
+      method: "PUT",
+      path: (a) => `/api/scenarios/${a.id}`,
+    },
+    delete_scenario: {
+      method: "DELETE",
+      path: (a) => `/api/scenarios/${a.id}`,
+    },
+    // Categorias
+    list_categories: {
+      method: "GET",
+      path: (a) => `/api/categories/${a.scenarioId}`,
+    },
+    get_category: {
+      method: "GET",
+      path: (a) => `/api/categories/item/${a.id}`,
+    },
+    create_category: { method: "POST", path: "/api/categories" },
+    update_category: {
+      method: "PUT",
+      path: (a) => `/api/categories/${a.id}`,
+    },
+    delete_category: {
+      method: "DELETE",
+      path: (a) => `/api/categories/${a.id}`,
+    },
+    reorder_category: {
+      method: "PUT",
+      path: (a) => `/api/categories/${a.id}/reorder`,
+    },
+    // Itens
+    list_items: {
+      method: "GET",
+      path: (a) => `/api/items/by-category/${a.categoryId}`,
+    },
+    get_item: { method: "GET", path: (a) => `/api/items/${a.id}` },
+    create_item: { method: "POST", path: "/api/items" },
+    update_item: { method: "PUT", path: (a) => `/api/items/${a.id}` },
+    delete_item: { method: "DELETE", path: (a) => `/api/items/${a.id}` },
+    // Valores
+    create_value: { method: "POST", path: "/api/values" },
+    update_value: { method: "PUT", path: (a) => `/api/values/${a.id}` },
+    // Parâmetros
+    get_parameters: { method: "GET", path: "/api/parameters" },
+    update_parameters: { method: "PUT", path: "/api/parameters" },
+    // Análise
+    get_scenario_summary: {
+      method: "GET",
+      path: (a) => `/api/analysis/summary/${a.scenarioId}`,
+    },
+    compare_scenarios: {
+      method: "GET",
+      path: (a) => `/api/analysis/compare/${a.baseId}/${a.comparedId}`,
+    },
+    // Backup
+    export_data: { method: "GET", path: "/api/backup/export" },
+    import_data: { method: "POST", path: "/api/backup/import" },
+    get_db_stats: { method: "GET", path: "/api/backup/stats" },
+    // PDF
+    generate_pdf: {
+      method: "GET",
+      path: (a) => `/api/pdf/${a.scenarioId}`,
+    },
+  };
+
+  const route = routeMap[command];
+  if (!route) {
+    throw new Error(`Comando HTTP não mapeado: ${command}`);
+  }
+
+  const path =
+    typeof route.path === "function"
+      ? route.path(args ?? {})
+      : route.path;
+  const url = `${base}${path}`;
+
+  const fetchOpts: RequestInit = {
+    method: route.method,
+    headers: { "Content-Type": "application/json" },
+  };
+
+  // Para POST/PUT, enviar o body correto
+  if (route.method === "POST" || route.method === "PUT") {
+    // Extrair o body — para commands que enviam 'request', enviar o request diretamente
+    const body = args?.request ?? args ?? {};
+    fetchOpts.body = JSON.stringify(body);
+  }
+
+  const response = await fetch(url, fetchOpts);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
     throw new Error(
-      `Comando "${command}" indisponível: app não está rodando no contexto Tauri.`
+      errorData.error || `Erro HTTP ${response.status}: ${response.statusText}`,
     );
   }
+
+  // DELETE retorna 204 sem body
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json();
 }
 
 // ========================
@@ -198,4 +347,37 @@ export async function getDbStats(): Promise<DbStats> {
 
 export async function generatePdf(scenarioId: number): Promise<number[]> {
   return invoke("generate_pdf", { scenarioId });
+}
+
+// ========================
+// Network Server (Tauri only)
+// ========================
+
+export interface NetworkInfo {
+  running: boolean;
+  port: number;
+  addresses: string[];
+}
+
+export async function registerDbPath(): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
+  return tauriInvoke("register_db_path");
+}
+
+export async function startNetworkServer(
+  port?: number,
+): Promise<NetworkInfo> {
+  const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
+  return tauriInvoke("start_network_server", { port: port ?? null });
+}
+
+export async function stopNetworkServer(): Promise<NetworkInfo> {
+  const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
+  return tauriInvoke("stop_network_server");
+}
+
+export async function getNetworkStatus(): Promise<NetworkInfo> {
+  const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
+  return tauriInvoke("get_network_status");
 }

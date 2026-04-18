@@ -1,8 +1,10 @@
 pub mod commands;
 pub mod db;
 pub mod models;
+pub mod server;
 pub mod services;
 
+use commands::network::NetworkServer;
 use db::Database;
 use tauri::Manager;
 
@@ -21,6 +23,7 @@ pub fn run() {
                 .expect("Não foi possível inicializar o banco de dados");
 
             app.manage(database);
+            app.manage(NetworkServer::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -57,6 +60,11 @@ pub fn run() {
             commands::backup::get_db_stats,
             // PDF
             commands::pdf::generate_pdf,
+            // Rede
+            commands::network::register_db_path,
+            commands::network::start_network_server,
+            commands::network::stop_network_server,
+            commands::network::get_network_status,
         ])
         .run(tauri::generate_context!())
         .expect("Erro ao executar a aplicação Tauri");
