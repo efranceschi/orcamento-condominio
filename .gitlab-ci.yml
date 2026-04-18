@@ -20,17 +20,16 @@ test:typescript:
   stage: test
   tags:
     - docker
-  image: node:${NODE_VERSION}-bookworm-slim
+  image: node:22-bookworm-slim
   variables:
     NODE_OPTIONS: "--max-old-space-size=4096"
     npm_config_fund: "false"
     npm_config_audit: "false"
-    npm_config_loglevel: "error"
+    npm_config_maxsockets: "3"
   before_script:
     - node --version
     - npm --version
-    - npm cache clean --force
-    - npm install --legacy-peer-deps
+    - npm install
   script:
     - ./node_modules/.bin/tsc --noEmit
     - echo "--- TypeScript check passed ---"
