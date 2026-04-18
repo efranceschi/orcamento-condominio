@@ -6,7 +6,7 @@
 #   3. release  — Publica artefatos (instaladores)
 #
 # Runners necessários:
-#   - Docker runner (sem tag) — para testes e release
+#   - Docker runner (tag: docker) — para testes e release
 #   - Runner macOS (tag: macos) — para build macOS [opcional]
 #   - Runner Windows (tag: windows) — para build Windows [opcional]
 
@@ -24,6 +24,8 @@ stages:
 
 test:typescript:
   stage: test
+  tags:
+    - docker
   image: node:${NODE_VERSION}-slim
   cache:
     key:
@@ -44,6 +46,8 @@ test:typescript:
 
 test:rust:
   stage: test
+  tags:
+    - docker
   image: rust:1.82-bookworm
   before_script:
     - rustup default stable
@@ -150,6 +154,8 @@ build:windows:
 
 release:publish:
   stage: release
+  tags:
+    - docker
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   needs:
     - job: build:macos
