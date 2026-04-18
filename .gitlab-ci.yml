@@ -27,22 +27,13 @@ test:typescript:
   tags:
     - docker
   image: node:${NODE_VERSION}-slim
-  cache:
-    key:
-      files:
-        - package-lock.json
-    paths:
-      - node_modules/
+  before_script:
+    - npm install --no-audit --no-fund
   script:
-    - npm ci --prefer-offline
-    - echo "--- TypeScript type check ---"
     - npx tsc --noEmit
-    - echo "--- Vite build check ---"
+    - echo "--- TypeScript check passed ---"
     - npx vite build
-  artifacts:
-    paths:
-      - dist/
-    expire_in: 1 hour
+    - echo "--- Vite build passed ---"
 
 test:rust:
   stage: test
