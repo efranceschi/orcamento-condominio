@@ -28,8 +28,95 @@ fn fetch_category(conn: &rusqlite::Connection, id: i64) -> Result<BudgetCategory
     .map_err(|e| format!("Categoria não encontrada: {}", e))
 }
 
-/// Constrói árvore hierárquica de categorias a partir de uma lista flat
-fn build_category_tree(all: &[BudgetCategory], parent_id: Option<i64>) -> Vec<BudgetCategory> {
+/// Carrega itens e valores para uma categoria
+fn load_items_for_category(
+    conn: &rusqlite::Connection,
+    category_id: i64,
+) -> Vec<crate::models::item::BudgetItem> {
+    let mut stmt = match conn.prepare(
+        "SELECT id, category_id, name, description, unit, \"order\", adjustment_percent, repeats_next_budget, is_optional, observations FROM budget_items WHERE category_id = ? ORDER BY \"order\" ASC, name ASC",
+    ) {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+
+    let items: Vec<crate::models::item::BudgetItem> = stmt
+        .query_map([category_id], |row| {
+            Ok(crate::models::item::BudgetItem {
+                id: row.get(0)?,
+                category_id: row.get(1)?,
+                name: row.get(2)?,
+                description: row.get(3)?,
+                unit: row.get(4)?,
+                order: row.get(5)?,
+                adjustment_percent: row.get(6)?,
+                repeats_next_budget: row.get::<_, i32>(7)? != 0,
+                is_optional: row.get::<_, i32>(8)? != 0,
+                observations: row.get(9)?,
+                values: Vec::new(),
+                effective_adjustment_percent: None,
+            })
+        })
+        .ok()
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default();
+
+    items
+        .into_iter()
+        .map(|mut item| {
+            let item_id = item.id.unwrap_or(0);
+            // Carregar valores
+            if let Ok(mut vstmt) = conn.prepare(
+                "SELECT id, item_id, budgeted, realized, adjusted, estimated_fixed, adjustment_percent, custom_adjustment, notes, created_at, updated_at FROM budget_values WHERE item_id = ?",
+            ) {
+                item.values = vstmt
+                    .query_map([item_id], |row| {
+                        let budgeted: f64 = row.get(2)?;
+                        let realized: Option<f64> = row.get(3)?;
+                        let used_pct = if budgeted > 0.0 {
+                            realized.map(|r| (r / budgeted) * 100.0)
+                        } else {
+                            None
+                        };
+                        let variance = realized.map(|r| r - budgeted);
+                        let variance_pct = if budgeted > 0.0 {
+                            variance.map(|v| (v / budgeted) * 100.0)
+                        } else {
+                            None
+                        };
+                        Ok(crate::models::value::BudgetValue {
+                            id: row.get(0)?,
+                            item_id: row.get(1)?,
+                            budgeted,
+                            realized,
+                            adjusted: row.get(4)?,
+                            estimated_fixed: row.get(5)?,
+                            adjustment_percent: row.get(6)?,
+                            custom_adjustment: row.get(7)?,
+                            notes: row.get(8)?,
+                            created_at: row.get(9)?,
+                            updated_at: row.get(10)?,
+                            estimated: None,
+                            variance,
+                            variance_percent: variance_pct,
+                            used_percent: used_pct,
+                        })
+                    })
+                    .ok()
+                    .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                    .unwrap_or_default();
+            }
+            item
+        })
+        .collect()
+}
+
+/// Constrói árvore hierárquica de categorias com itens e valores
+fn build_category_tree_with_items(
+    conn: &rusqlite::Connection,
+    all: &[BudgetCategory],
+    parent_id: Option<i64>,
+) -> Vec<BudgetCategory> {
     let mut result: Vec<BudgetCategory> = all
         .iter()
         .filter(|c| c.parent_category_id == parent_id)
@@ -37,7 +124,9 @@ fn build_category_tree(all: &[BudgetCategory], parent_id: Option<i64>) -> Vec<Bu
         .collect();
 
     for cat in result.iter_mut() {
-        cat.subcategories = build_category_tree(all, cat.id);
+        let cat_id = cat.id.unwrap_or(0);
+        cat.items = load_items_for_category(conn, cat_id);
+        cat.subcategories = build_category_tree_with_items(conn, all, cat.id);
     }
 
     result.sort_by_key(|c| c.order);
@@ -82,7 +171,7 @@ pub fn list_categories(
         flat.push(row.map_err(|e| e.to_string())?);
     }
 
-    Ok(build_category_tree(&flat, None))
+    Ok(build_category_tree_with_items(&conn, &flat, None))
 }
 
 #[tauri::command]
