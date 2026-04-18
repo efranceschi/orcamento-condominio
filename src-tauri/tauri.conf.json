@@ -10,7 +10,6 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "title": "Calculadora Orçamentária",
     "windows": [
       {
         "title": "Calculadora Orçamentária",
@@ -37,13 +36,6 @@
       "icons/icon.ico"
     ]
   },
-  "plugins": {
-    "dialog": {},
-    "fs": {
-      "scope": {
-        "allow": ["$APPDATA/**", "$DOWNLOAD/**", "$HOME/**"],
-        "deny": []
-      }
-    }
-  }
+  "plugins": {}
+
 }

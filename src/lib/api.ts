@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import type {
   BudgetScenario,
   CreateScenarioRequest,
@@ -18,6 +17,18 @@ import type {
   ScenarioComparison,
   DbStats,
 } from "../types";
+
+// Wrapper para invoke que detecta se está no contexto Tauri
+async function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  try {
+    const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
+    return tauriInvoke<T>(command, args);
+  } catch {
+    throw new Error(
+      `Comando "${command}" indisponível: app não está rodando no contexto Tauri.`
+    );
+  }
+}
 
 // ========================
 // Scenarios
