@@ -27,8 +27,15 @@ test:typescript:
   tags:
     - docker
   image: node:${NODE_VERSION}-bookworm-slim
+  variables:
+    NODE_OPTIONS: "--max-old-space-size=4096"
+    npm_config_fund: "false"
+    npm_config_audit: "false"
+    npm_config_loglevel: "error"
   before_script:
-    - npm install --no-audit --no-fund || { echo "ERROR: npm install failed"; exit 1; }
+    - node --version && npm --version
+    - npm cache clean --force || true
+    - npm install --legacy-peer-deps || { echo "ERROR: npm install failed"; exit 1; }
   script:
     - ./node_modules/.bin/tsc --noEmit
     - echo "--- TypeScript check passed ---"
