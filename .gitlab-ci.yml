@@ -4,6 +4,11 @@
 #   1. test     — TypeScript check + Rust check
 #   2. build    — Build de produção para macOS e Windows
 #   3. release  — Publica artefatos (instaladores)
+#
+# Runners necessários:
+#   - Docker runner (sem tag) — para testes e release
+#   - Runner macOS (tag: macos) — para build macOS [opcional]
+#   - Runner Windows (tag: windows) — para build Windows [opcional]
 
 variables:
   NODE_VERSION: "20"
@@ -19,8 +24,6 @@ stages:
 
 test:typescript:
   stage: test
-  tags:
-    - docker
   image: node:${NODE_VERSION}-slim
   cache:
     key:
@@ -41,16 +44,7 @@ test:typescript:
 
 test:rust:
   stage: test
-  tags:
-    - docker
   image: rust:1.82-bookworm
-  cache:
-    key:
-      files:
-        - src-tauri/Cargo.lock
-    paths:
-      - src-tauri/target/
-      - /usr/local/cargo/registry/
   before_script:
     - rustup default stable
     - apt-get update -qq
@@ -70,7 +64,7 @@ test:rust:
     - echo "--- Rust check passed ---"
 
 # ============================================================
-# STAGE: build — macOS
+# STAGE: build — macOS (requer runner com tag 'macos')
 # ============================================================
 
 build:macos:
@@ -79,6 +73,7 @@ build:macos:
     - macos
   needs:
     - test:typescript
+  allow_failure: true
   before_script:
     - |
       if ! command -v rustup &> /dev/null; then
@@ -110,7 +105,7 @@ build:macos:
     - if: $CI_COMMIT_TAG
 
 # ============================================================
-# STAGE: build — Windows
+# STAGE: build — Windows (requer runner com tag 'windows')
 # ============================================================
 
 build:windows:
@@ -119,6 +114,7 @@ build:windows:
     - windows
   needs:
     - test:typescript
+  allow_failure: true
   before_script:
     - |
       if (-not (Get-Command rustup -ErrorAction SilentlyContinue)) {
@@ -154,14 +150,12 @@ build:windows:
 
 release:publish:
   stage: release
-  tags:
-    - docker
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   needs:
     - job: build:macos
-      artifacts: true
+      optional: true
     - job: build:windows
-      artifacts: true
+      optional: true
   script:
     - echo "Publicando release ${CI_COMMIT_TAG}"
   release:
@@ -170,20 +164,6 @@ release:publish:
     description: |
       Instaladores da Calculadora Orçamentária versão $CI_COMMIT_TAG.
 
-      **macOS:**
-      - `.dmg` (Apple Silicon — aarch64)
-      - `.dmg` (Intel — x86_64)
-
-      **Windows:**
-      - `.msi` (instalador MSI)
-      - `.exe` (instalador NSIS)
-    assets:
-      links:
-        - name: "macOS (Apple Silicon) .dmg"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/download?job=build:macos"
-          link_type: package
-        - name: "Windows Installer"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/download?job=build:windows"
-          link_type: package
+      Baixe os artefatos dos jobs de build no pipeline.
   rules:
     - if: $CI_COMMIT_TAG
