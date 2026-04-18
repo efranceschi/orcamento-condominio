@@ -17,9 +17,6 @@ jobs:
           - platform: macos-latest
             target: aarch64-apple-darwin
             label: macOS-arm64
-          - platform: macos-13
-            target: x86_64-apple-darwin
-            label: macOS-x64
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             label: Linux-x64
@@ -73,8 +70,7 @@ jobs:
             **Downloads por plataforma:**
             | Plataforma | Arquivo |
             |---|---|
-            | macOS (Apple Silicon) | `.dmg` arm64 |
-            | macOS (Intel) | `.dmg` x64 |
+            | macOS (Apple Silicon) | `.dmg` |
             | Linux | `.deb` / `.AppImage` |
             | Windows | `.msi` / `.exe` |
           releaseDraft: false
