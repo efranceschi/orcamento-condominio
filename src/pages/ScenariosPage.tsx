@@ -223,8 +223,31 @@ export default function ScenariosPage() {
 
   const handlePdf = async (scenario: BudgetScenario) => {
     try {
-      await generatePdf(scenario.id!);
-      alert("PDF gerado com sucesso!");
+      const pdfBytes = await generatePdf(scenario.id!);
+      const fileName = `Orcamento_${scenario.name.replace(/[^a-zA-Z0-9]/g, "_")}_${scenario.year}.pdf`;
+
+      if ("__TAURI_INTERNALS__" in window) {
+        // Tauri: diálogo nativo de salvar
+        const { save } = await import("@tauri-apps/plugin-dialog");
+        const { writeFile } = await import("@tauri-apps/plugin-fs");
+        const filePath = await save({
+          defaultPath: fileName,
+          filters: [{ name: "PDF", extensions: ["pdf"] }],
+        });
+        if (filePath) {
+          await writeFile(filePath, new Uint8Array(pdfBytes));
+          alert("PDF salvo com sucesso!");
+        }
+      } else {
+        // Browser: download via blob
+        const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
     } catch (err) {
       alert(`Erro ao gerar PDF: ${err}`);
     }
