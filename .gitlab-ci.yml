@@ -26,10 +26,9 @@ test:typescript:
   stage: test
   tags:
     - docker
-  image: node:${NODE_VERSION}-alpine
+  image: node:${NODE_VERSION}-bookworm-slim
   before_script:
-    - df -h / | tail -1
-    - npm install --no-audit --no-fund --prefer-offline || { echo "npm install failed - likely disk full"; exit 1; }
+    - npm install --no-audit --no-fund || { echo "ERROR: npm install failed"; exit 1; }
   script:
     - ./node_modules/.bin/tsc --noEmit
     - echo "--- TypeScript check passed ---"
