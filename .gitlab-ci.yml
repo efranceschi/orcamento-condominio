@@ -6,11 +6,12 @@
 # Runner necessário:
 #   - Docker runner (tag: docker)
 
-# Evitar pipelines duplicados: se o commit tem tag E branch,
-# executa apenas o da tag (não duplica para o branch)
+# Executa pipeline apenas para branches (não para tags)
+# Builds locais são feitos com ./build.sh
 workflow:
   rules:
     - if: $CI_COMMIT_TAG
+      when: never
     - if: $CI_COMMIT_BRANCH
 
 stages:
