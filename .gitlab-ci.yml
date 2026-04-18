@@ -26,13 +26,14 @@ test:typescript:
   stage: test
   tags:
     - docker
-  image: node:${NODE_VERSION}-slim
+  image: node:${NODE_VERSION}-alpine
   before_script:
-    - npm install --no-audit --no-fund
+    - df -h / | tail -1
+    - npm install --no-audit --no-fund --prefer-offline || { echo "npm install failed - likely disk full"; exit 1; }
   script:
-    - npx tsc --noEmit
+    - ./node_modules/.bin/tsc --noEmit
     - echo "--- TypeScript check passed ---"
-    - npx vite build
+    - ./node_modules/.bin/vite build
     - echo "--- Vite build passed ---"
 
 test:rust:
