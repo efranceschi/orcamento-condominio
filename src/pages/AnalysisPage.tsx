@@ -31,7 +31,7 @@ interface OptionalItem {
   itemId: number;
   name: string;
   categoryName: string;
-  itemType: string; // "receita" | "despesa"
+  itemType: string; // "revenue" | "expense"
   estimatedValue: number;
   budgetedValue: number;
   realizedValue: number;
@@ -192,7 +192,7 @@ export default function AnalysisPage() {
 
     for (const item of optionalItems) {
       if (!included[item.itemId]) {
-        if (item.itemType === "receita") {
+        if (item.itemType === "revenue") {
           revEstDelta += item.estimatedValue;
           revBudDelta += item.budgetedValue;
           revReaDelta += item.realizedValue;
@@ -474,11 +474,11 @@ export default function AnalysisPage() {
                       <span className="font-medium text-sm">{item.name}</span>
                       <Badge
                         variant={
-                          item.itemType === "receita" ? "default" : "secondary"
+                          item.itemType === "revenue" ? "default" : "secondary"
                         }
                         className="text-xs"
                       >
-                        {item.itemType === "receita" ? "Receita" : "Despesa"}
+                        {item.itemType === "revenue" ? "Receita" : "Despesa"}
                       </Badge>
                     </div>
                     <span className="text-xs text-gray-400">
@@ -488,7 +488,7 @@ export default function AnalysisPage() {
                   <span
                     className={cn(
                       "text-sm font-medium whitespace-nowrap",
-                      item.itemType === "receita"
+                      item.itemType === "revenue"
                         ? "text-green-600"
                         : "text-red-600",
                     )}

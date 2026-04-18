@@ -120,7 +120,7 @@ export default function EditBudgetPage() {
   const [loading, setLoading] = useState(true);
 
   // Left panel
-  const [activeTab, setActiveTab] = useState<"despesa" | "receita">("despesa");
+  const [activeTab, setActiveTab] = useState<"expense" | "revenue">("expense");
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
@@ -596,22 +596,22 @@ export default function EditBudgetPage() {
             <button
               className={cn(
                 "flex-1 py-2 text-sm font-medium transition-colors",
-                activeTab === "despesa"
+                activeTab === "expense"
                   ? "border-b-2 border-blue-600 text-blue-600"
                   : "text-gray-500 hover:text-gray-700",
               )}
-              onClick={() => setActiveTab("despesa")}
+              onClick={() => setActiveTab("expense")}
             >
               Despesas
             </button>
             <button
               className={cn(
                 "flex-1 py-2 text-sm font-medium transition-colors",
-                activeTab === "receita"
+                activeTab === "revenue"
                   ? "border-b-2 border-blue-600 text-blue-600"
                   : "text-gray-500 hover:text-gray-700",
               )}
-              onClick={() => setActiveTab("receita")}
+              onClick={() => setActiveTab("revenue")}
             >
               Receitas
             </button>

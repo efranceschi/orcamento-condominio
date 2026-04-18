@@ -294,7 +294,7 @@ export default function ScenarioDetailsPage() {
   // Filter categories by tab, search, and adjustment
   // -----------------------------------------------------------------------
 
-  const tabItemType = activeTab === "despesas" ? "despesa" : "receita";
+  const tabItemType = activeTab === "despesas" ? "expense" : "revenue";
 
   const filteredCategories = useMemo(() => {
     let cats = categories.filter(
